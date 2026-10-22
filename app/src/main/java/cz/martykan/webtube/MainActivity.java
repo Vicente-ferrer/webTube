@@ -1,14 +1,9 @@
 package cz.martykan.webtube;
 
-import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.media.AudioManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import com.google.android.material.navigation.NavigationView;
@@ -25,11 +20,10 @@ import android.widget.ProgressBar;
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "webTube";
 
-    private WebView webView;
+    private WebTubeWebView webView;
     String time;
     private NavigationView navigationView;
     private SharedPreferences sp;
-    private BroadcastReceiver headSetReceiver;
     // For the snackbar with error message
     View.OnClickListener clickListener = new View.OnClickListener() {
         @Override
@@ -65,10 +59,6 @@ public class MainActivity extends AppCompatActivity {
         DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.bookmarks_panel);
 
-        // Set up media button receiver
-        ((AudioManager) getSystemService(AUDIO_SERVICE)).registerMediaButtonEventReceiver(
-                new ComponentName(getPackageName(), MediaButtonIntentReceiver.class.getName()));
-
         // Set up WebChromeClient
         webView.setWebChromeClient(new WebTubeChromeClient(webView, progress, customViewContainer, drawerLayout, getWindow().getDecorView()));
 
@@ -76,6 +66,15 @@ public class MainActivity extends AppCompatActivity {
         playerController = new PlayerController(webView);
         PlayerBridge playerBridge = new PlayerBridge(this, webView, playerController);
         playerBridge.install();
+
+        // Background playback, notification and lock screen controls
+        playerController.addListener(state -> {
+            if (state.playing && backgroundPlayHelper.isBackgroundPlayEnabled()) {
+                PlaybackService.start(this);
+            }
+        });
+        webView.setBackgroundPolicy(() ->
+                backgroundPlayHelper.isBackgroundPlayEnabled() && playerController.getState().hasVideo());
 
         // Set up WebViewClient
         webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.menu_main),
@@ -115,7 +114,7 @@ public class MainActivity extends AppCompatActivity {
         torHelper = new TorHelper(mApplicationContext, webView);
         torHelper.setUpTor();
 
-        backgroundPlayHelper = new BackgroundPlayHelper(mApplicationContext, webView);
+        backgroundPlayHelper = new BackgroundPlayHelper(mApplicationContext);
 
         // Menu helper
         ActionMenuView actionMenu = findViewById(R.id.menu_main);
@@ -129,37 +128,23 @@ public class MainActivity extends AppCompatActivity {
         if (!loadUrlFromIntent(getIntent())) {
             webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
         }
-
-        //Unplug Headphone detector
-        headSetReceiver = new HeadSetReceiver();
     }
 
     @Override
     public void onPause() {
         super.onPause();
-        if (backgroundPlayHelper.isBackgroundPlayEnabled()) {
-            backgroundPlayHelper.playInBackground();
-        } else {
+        // webtube.js keeps YouTube from pausing by itself, so stop here unless the PlaybackService takes over
+        if (!backgroundPlayHelper.isBackgroundPlayEnabled()) {
             playerController.pause();
         }
     }
 
     @Override
-    public void onResume() {
-        super.onResume();
-        backgroundPlayHelper.hideBackgroundPlaybackNotification();
-
-        IntentFilter filter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
-        registerReceiver(headSetReceiver, filter);
-    }
-
-    @Override
     public void onDestroy() {
         super.onDestroy();
+        // The WebView playing the video dies with this activity
+        PlaybackService.stop(this);
         playerController.release();
-        backgroundPlayHelper.hideBackgroundPlaybackNotification();
-        ((AudioManager) getSystemService(AUDIO_SERVICE)).unregisterMediaButtonEventReceiver(
-                new ComponentName(getPackageName(), MediaButtonIntentReceiver.class.getName()));
     }
 
     @Override

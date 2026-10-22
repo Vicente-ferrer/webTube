@@ -4,6 +4,9 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application
         android:allowBackup="true"
@@ -71,20 +74,10 @@
 
             </intent-filter>
         </activity>
-        <activity
-            android:name=".NotificationCloser"
+        <service
+            android:name=".PlaybackService"
             android:exported="false"
-            android:excludeFromRecents="true"
-            android:taskAffinity=""
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-
-        <receiver
-            android:name=".MediaButtonIntentReceiver"
-            android:exported="true">
-            <intent-filter android:priority="100000">
-                <action android:name="android.intent.action.MEDIA_BUTTON" />
-            </intent-filter>
-        </receiver>
+            android:foregroundServiceType="mediaPlayback" />
     </application>
 
 </manifest>

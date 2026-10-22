@@ -24,4 +24,11 @@
     <string name="share">Compartilhar</string>
     <string name="share_with">Compartilhar com…</string>
     <string name="torWarning">Usar o Tor de maneira irresponsável, como entrar com sua conta do YouTube, não irá fazer seu tráfego ficar anônimo e só irá piorar.</string>
+    <string name="playbackChannel">Reprodução</string>
+    <string name="play">Reproduzir</string>
+    <string name="pause">Pausar</string>
+    <string name="next">Próximo</string>
+    <string name="previous">Anterior</string>
+    <string name="close">Fechar</string>
+    <string name="advertisement">Anúncio</string>
 </resources>

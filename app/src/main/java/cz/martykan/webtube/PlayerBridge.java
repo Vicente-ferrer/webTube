@@ -71,7 +71,6 @@ public class PlayerBridge {
 
     private void onMessage(String data) {
         try {
-            Log.d(LOG_TAG, "Page: " + data);
             JSONObject json = new JSONObject(data);
             if ("state".equals(json.optString("type"))) {
                 playerController.onStateReported(new PlaybackState(json));

@@ -83,11 +83,19 @@
         return !!document.querySelector('.ad-showing, .ad-interrupting');
     }
 
+    function title() {
+        var meta = navigator.mediaSession && navigator.mediaSession.metadata;
+        return (meta && meta.title) || document.title.replace(/ - YouTube$/, '');
+    }
+
+    var lastTitle = '';
+
     function report() {
         var v = video();
         if (!v) return;
         var meta = navigator.mediaSession && navigator.mediaSession.metadata;
         var artwork = meta && meta.artwork && meta.artwork.length ? meta.artwork[meta.artwork.length - 1].src : '';
+        lastTitle = title();
         send({
             type: 'state',
             playing: !v.paused && !v.ended,
@@ -100,7 +108,7 @@
             ad: isAd(),
             videoId: videoId(),
             url: location.href,
-            title: (meta && meta.title) || document.title.replace(/ - YouTube$/, ''),
+            title: lastTitle,
             artist: (meta && meta.artist) || '',
             artwork: artwork
         });
@@ -111,6 +119,11 @@
             if (e.target instanceof HTMLVideoElement) report();
         }, true);
     });
+
+    // YouTube renames the page after the video starts, and when autoplay moves to the next one
+    document.addEventListener('timeupdate', function (e) {
+        if (e.target instanceof HTMLVideoElement && title() !== lastTitle) report();
+    }, true);
 
     function callAction(action, details) {
         var handler = actionHandlers[action];

@@ -26,4 +26,11 @@
     <string name="share">Share</string>
     <string name="share_with">Share with…</string>
     <string name="torWarning">Using Tor irresponsibly, like signing in to your YouTube account, not only defeats the purpose of using Tor, but will also deanonymize your traffic and only make it worse.</string>
+    <string name="playbackChannel">Playback</string>
+    <string name="play">Play</string>
+    <string name="pause">Pause</string>
+    <string name="next">Next</string>
+    <string name="previous">Previous</string>
+    <string name="close">Close</string>
+    <string name="advertisement">Advertisement</string>
 </resources>
