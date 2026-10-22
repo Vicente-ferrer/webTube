@@ -25,7 +25,7 @@ public class MediaButtonIntentReceiver extends BroadcastReceiver {
         if (action == KeyEvent.ACTION_DOWN) {
             if (event.getKeyCode() == KeyEvent.KEYCODE_MEDIA_PAUSE || event.getKeyCode() == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE || event.getKeyCode() == 79) {
                 try {
-                    MainActivity.toggleVideo();
+                    PlayerController.get().toggle();
                 } catch (Exception e) {
                     // Activity is not running
                     e.printStackTrace();

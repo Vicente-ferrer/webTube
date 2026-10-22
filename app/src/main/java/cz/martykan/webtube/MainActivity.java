@@ -25,7 +25,7 @@ import android.widget.ProgressBar;
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "webTube";
 
-    private static WebView webView;
+    private WebView webView;
     String time;
     private NavigationView navigationView;
     private SharedPreferences sp;
@@ -43,29 +43,7 @@ public class MainActivity extends AppCompatActivity {
     BackgroundPlayHelper backgroundPlayHelper;
     BookmarkManager bookmarkManager;
     MenuHelper menuHelper;
-
-    public static void toggleVideo() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            webView.evaluateJavascript("(function() { return document.getElementsByTagName('video')[0].paused; })();",
-                    value -> {
-                        if (value.equals("true")) {
-                            playVideo();
-                        } else {
-                            pauseVideo();
-                        }
-                    });
-        } else {
-            pauseVideo();
-        }
-    }
-
-    public static void pauseVideo() {
-        webView.loadUrl("javascript:document.getElementsByTagName('video')[0].pause();");
-    }
-
-    public static void playVideo() {
-        webView.loadUrl("javascript:document.getElementsByTagName('video')[0].play();");
-    }
+    PlayerController playerController;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,8 +72,14 @@ public class MainActivity extends AppCompatActivity {
         // Set up WebChromeClient
         webView.setWebChromeClient(new WebTubeChromeClient(webView, progress, customViewContainer, drawerLayout, getWindow().getDecorView()));
 
+        // Bridge between the page's <video> and the app
+        playerController = new PlayerController(webView);
+        PlayerBridge playerBridge = new PlayerBridge(this, webView, playerController);
+        playerBridge.install();
+
         // Set up WebViewClient
-        webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.menu_main)));
+        webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.menu_main),
+                playerBridge, playerController));
 
         // Set up WebView
         setUpWebview();
@@ -156,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
         if (backgroundPlayHelper.isBackgroundPlayEnabled()) {
             backgroundPlayHelper.playInBackground();
         } else {
-            pauseVideo();
+            playerController.pause();
         }
     }
 
@@ -172,6 +156,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        playerController.release();
         backgroundPlayHelper.hideBackgroundPlaybackNotification();
         ((AudioManager) getSystemService(AUDIO_SERVICE)).unregisterMediaButtonEventReceiver(
                 new ComponentName(getPackageName(), MediaButtonIntentReceiver.class.getName()));

@@ -15,7 +15,7 @@ public class HeadSetReceiver extends BroadcastReceiver {
             switch (state) {
                 case 0:
                     if (headphonePlug) {
-                        MainActivity.pauseVideo();
+                        PlayerController.get().pause();
                         headphonePlug = false;
                     }
                     Log.i("Value", "Headset unplugged");

@@ -71,7 +71,7 @@ public class TorHelper {
         }
 
         Intent mStartActivity = new Intent(mApplicationContext, MainActivity.class);
-        PendingIntent mPendingIntent = PendingIntent.getActivity(mApplicationContext, 12374, mStartActivity, PendingIntent.FLAG_CANCEL_CURRENT);
+        PendingIntent mPendingIntent = PendingIntent.getActivity(mApplicationContext, 12374, mStartActivity, PendingIntent.FLAG_CANCEL_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         AlarmManager mgr = (AlarmManager) mApplicationContext.getSystemService(Context.ALARM_SERVICE);
         mgr.set(AlarmManager.RTC, System.currentTimeMillis() + 100, mPendingIntent);
         System.exit(0);

@@ -79,7 +79,7 @@ public class BackgroundPlayHelper {
                         new Intent(context, MainActivity.class)
                                 .setAction(Intent.ACTION_VIEW)
                                 .setData(Uri.parse(webView.getUrl())),
-                        PendingIntent.FLAG_UPDATE_CURRENT));
+                        PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE));
         NotificationManager manager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         manager.notify(NOTIFICATION_ID, builder.build());
     }

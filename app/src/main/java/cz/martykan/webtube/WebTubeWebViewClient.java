@@ -2,8 +2,8 @@ package cz.martykan.webtube;
 
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
-import android.os.Build;
 import android.preference.PreferenceManager;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.core.content.ContextCompat;
@@ -17,13 +17,18 @@ public class WebTubeWebViewClient extends WebViewClient {
     View appWindow;
     View statusBarSpace;
     View bottomBar;
+    PlayerBridge playerBridge;
+    PlayerController playerController;
 
-    public WebTubeWebViewClient(Context context, View appWindow, View.OnClickListener clickListener, View statusBarSpace, View bottomBar) {
+    public WebTubeWebViewClient(Context context, View appWindow, View.OnClickListener clickListener, View statusBarSpace, View bottomBar,
+                                PlayerBridge playerBridge, PlayerController playerController) {
         this.context = context;
         this.clickListener = clickListener;
         this.appWindow = appWindow;
         this.statusBarSpace = statusBarSpace;
         this.bottomBar = bottomBar;
+        this.playerBridge = playerBridge;
+        this.playerController = playerController;
     }
 
     // Open links in a browser window (except for sign-in dialogs and YouTube URLs)
@@ -37,44 +42,23 @@ public class WebTubeWebViewClient extends WebViewClient {
         return false;
     }
 
-    public void onLoadResource(WebView view, String url) {
-        if (!url.contains(".jpg") && !url.contains(".ico") && !url.contains(".css") && !url.contains(".js") && !url.contains("complete/search")) {
-            // Remove all iframes (to prevent WebRTC exploits)
-            view.loadUrl("javascript:(function() {" +
-                    "var iframes = document.getElementsByTagName('iframe');" +
-                    "for(i=0;i<=iframes.length;i++){" +
-                    "if(typeof iframes[0] != 'undefined')" +
-                    "iframes[0].outerHTML = '';" +
-                    "}})()");
+    @Override
+    public void onPageStarted(WebView view, String url, Bitmap favicon) {
+        super.onPageStarted(view, url, favicon);
+        playerBridge.onPageStarted(url);
+    }
 
-            // Gets rid of orange outlines
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+    // Called for full page loads and for YouTube's in-page (history.pushState) navigation
+    @Override
+    public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
+        super.doUpdateVisitedHistory(view, url, isReload);
+        playerController.onPageChanged(url);
 
-                String css = "*, *:focus { " +
-                        " outline: none !important; -webkit-tap-highlight-color: rgba(255,255,255,0) !important; -webkit-tap-highlight-color: transparent !important; }" +
-                        " ._mfd { padding-top: 2px !important; } ";
-                view.loadUrl("javascript:(function() {" +
-                        "if(document.getElementById('webTubeStyle') == null){" +
-                        "var parent = document.getElementsByTagName('head').item(0);" +
-                        "var style = document.createElement('style');" +
-                        "style.id = 'webTubeStyle';" +
-                        "style.type = 'text/css';" +
-                        "style.innerHTML = '" + css + "';" +
-                        "parent.appendChild(style);" +
-                        "}})()");
-            }
-
-            // To adapt the statusbar color
-            if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
-                statusBarSpace.setVisibility(View.VISIBLE);
-                view.evaluateJavascript("(function() { if(document.getElementById('player').style.visibility == 'hidden' || document.getElementById('player').innerHTML == '') { return 'not_video'; } else { return 'video'; } })();",
-                        value -> {
-                            int colorId = value.contains("not_video") ? R.color.colorPrimary : R.color.colorWatch;
-                            statusBarSpace.setBackgroundColor(ContextCompat.getColor(context, colorId));
-                            bottomBar.setBackgroundColor(ContextCompat.getColor(context, colorId));
-                        });
-            }
-        }
+        // To adapt the statusbar color
+        statusBarSpace.setVisibility(View.VISIBLE);
+        int colorId = PlayerController.isVideoUrl(url) ? R.color.colorWatch : R.color.colorPrimary;
+        statusBarSpace.setBackgroundColor(ContextCompat.getColor(context, colorId));
+        bottomBar.setBackgroundColor(ContextCompat.getColor(context, colorId));
     }
 
     // Deal with error messages
