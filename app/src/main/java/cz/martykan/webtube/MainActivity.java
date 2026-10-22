@@ -210,11 +210,7 @@ public class MainActivity extends AppCompatActivity {
 
         webSettings.setDatabaseEnabled(true);
 
-        String cachePath = mApplicationContext
-                .getDir("cache", Context.MODE_PRIVATE).getPath();
-        webSettings.setAppCachePath(cachePath);
         webSettings.setAllowFileAccess(true);
-        webSettings.setAppCacheEnabled(true);
         webSettings.setDomStorageEnabled(true);
         webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
 

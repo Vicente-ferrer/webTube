@@ -1,8 +1,8 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 28
-    buildToolsVersion '28.0.3'
+    namespace 'cz.martykan.webtube'
+    compileSdkVersion 34
 
     defaultConfig {
         applicationId "cz.martykan.webtube"
@@ -32,7 +32,6 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
-            zipAlignEnabled true
         }
     }
 }
@@ -41,8 +40,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.1.0-alpha01'
     implementation 'androidx.appcompat:appcompat:1.0.2'
 
-    implementation 'info.guardianproject.netcipher:netcipher:2.0.0-beta1'
-    implementation 'info.guardianproject.netcipher:netcipher-webkit:2.0.0-alpha1'
+    implementation 'info.guardianproject.netcipher:netcipher:2.1.0'
+    implementation files('libs/netcipher-webkit-2.1.0-stripped.jar')
 
     testImplementation 'junit:junit:4.12'
 }
