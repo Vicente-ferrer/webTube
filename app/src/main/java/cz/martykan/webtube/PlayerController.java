@@ -93,6 +93,11 @@ public class PlayerController {
         run("report()");
     }
 
+    // Shows only the video, filling the page
+    public void setPictureInPicture(boolean enabled) {
+        run("setPictureInPicture(" + enabled + ")");
+    }
+
     private void run(String call) {
         webView.post(() -> webView.evaluateJavascript("window.__webTube && window.__webTube." + call, null));
     }

@@ -31,4 +31,5 @@
     <string name="previous">Anterior</string>
     <string name="close">Fechar</string>
     <string name="advertisement">Anúncio</string>
+    <string name="pictureInPicture">Picture-in-picture</string>
 </resources>

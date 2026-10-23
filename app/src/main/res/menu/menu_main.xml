@@ -45,6 +45,13 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_pictureInPicture"
+        android:checkable="true"
+        android:checked="true"
+        android:title="@string/pictureInPicture"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_tor"
         android:checkable="true"
         android:checked="false"

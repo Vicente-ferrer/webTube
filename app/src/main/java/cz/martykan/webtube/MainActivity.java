@@ -3,11 +3,15 @@ package cz.martykan.webtube;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import com.google.android.material.navigation.NavigationView;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.Lifecycle;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.ActionMenuView;
 import android.view.View;
@@ -38,6 +42,7 @@ public class MainActivity extends AppCompatActivity {
     BookmarkManager bookmarkManager;
     MenuHelper menuHelper;
     PlayerController playerController;
+    PictureInPictureHelper pictureInPictureHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
             if (state.playing && backgroundPlayHelper.isBackgroundPlayEnabled()) {
                 PlaybackService.start(this);
             }
+            pictureInPictureHelper.update();
         });
         webView.setBackgroundPolicy(() ->
                 backgroundPlayHelper.isBackgroundPlayEnabled() && playerController.getState().hasVideo());
@@ -116,9 +122,12 @@ public class MainActivity extends AppCompatActivity {
 
         backgroundPlayHelper = new BackgroundPlayHelper(mApplicationContext);
 
+        pictureInPictureHelper = new PictureInPictureHelper(this, playerController);
+        pictureInPictureHelper.register();
+
         // Menu helper
         ActionMenuView actionMenu = findViewById(R.id.menu_main);
-        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, appWindow);
+        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, pictureInPictureHelper, appWindow);
         getMenuInflater().inflate(R.menu.menu_main, actionMenu.getMenu());
         menuHelper.setUpMenu(actionMenu, drawerLayout, findViewById(R.id.bookmarks_panel));
         actionMenu.setOverflowIcon(getResources().getDrawable(R.drawable.ic_dots_vertical_white_24dp));
@@ -133,15 +142,40 @@ public class MainActivity extends AppCompatActivity {
     @Override
     public void onPause() {
         super.onPause();
-        // webtube.js keeps YouTube from pausing by itself, so stop here unless the PlaybackService takes over
-        if (!backgroundPlayHelper.isBackgroundPlayEnabled()) {
+        // webtube.js keeps YouTube from pausing by itself, so stop here unless the PlaybackService
+        // or the picture-in-picture window takes over
+        boolean inPictureInPicture = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode();
+        if (!backgroundPlayHelper.isBackgroundPlayEnabled() && !inPictureInPicture) {
             playerController.pause();
+        }
+    }
+
+    @Override
+    protected void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        pictureInPictureHelper.enterIfPlaying();
+    }
+
+    @Override
+    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode, Configuration newConfig) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+        // Only the video is shown in the small window
+        int appUiVisibility = isInPictureInPictureMode ? View.GONE : View.VISIBLE;
+        findViewById(R.id.bottomBar).setVisibility(appUiVisibility);
+        findViewById(R.id.statusBarSpace).setVisibility(appUiVisibility);
+        playerController.setPictureInPicture(isInPictureInPictureMode);
+
+        // The window was closed instead of being expanded back to the app
+        if (!isInPictureInPictureMode && getLifecycle().getCurrentState() == Lifecycle.State.CREATED) {
+            playerController.pause();
+            PlaybackService.stop(this);
         }
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        pictureInPictureHelper.unregister();
         // The WebView playing the video dies with this activity
         PlaybackService.stop(this);
         playerController.release();
@@ -169,6 +203,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setUpWebview() {
+        // Lets chrome://inspect attach to debug builds
+        if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true);
+        }
+
         // To save login info
         CookieHelper.acceptCookies(webView, true);
 

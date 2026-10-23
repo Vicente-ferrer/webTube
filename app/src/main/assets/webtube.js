@@ -28,6 +28,14 @@
     // Get rid of orange outlines
     addStyle('*, *:focus { outline: none !important; -webkit-tap-highlight-color: transparent !important; }');
 
+    // Picture-in-picture: only the video, filling the window.
+    // Sizes in % of the viewport, since vh units are 0 in a wrap_content WebView.
+    addStyle('html.webtube-pip, html.webtube-pip body { overflow: hidden !important; background: #000 !important; }' +
+        ' html.webtube-pip body, html.webtube-pip body * { visibility: hidden !important; }' +
+        ' html.webtube-pip body video { visibility: visible !important; position: fixed !important; top: 0 !important; left: 0 !important;' +
+        ' width: 100% !important; height: 100% !important; object-fit: contain !important; transform: none !important;' +
+        ' z-index: 2147483647 !important; background: #000 !important; }');
+
     // The app decides when to pause (MainActivity.onPause), so the page must never
     // see itself as hidden, or YouTube pauses the video when the screen turns off.
     function visible(name, value) {
@@ -43,6 +51,11 @@
     ['visibilitychange', 'webkitvisibilitychange'].forEach(function (type) {
         window.addEventListener(type, function (e) { e.stopImmediatePropagation(); }, true);
     });
+
+    // YouTube compares the window to the screen size, and pauses when the window is small
+    // (the picture-in-picture window) the same way it does in the background
+    Object.defineProperty(window, 'outerWidth', {configurable: true, get: function () { return screen.width; }});
+    Object.defineProperty(window, 'outerHeight', {configurable: true, get: function () { return screen.height; }});
 
     // YouTube registers Media Session handlers for next/previous; keep them so the
     // notification and lock screen buttons can call them.
@@ -147,6 +160,9 @@
             else if (!callAction('previoustrack')) history.back();
         },
         report: function () { lastReport = ''; report(); },
+        setPictureInPicture: function (enabled) {
+            document.documentElement.classList.toggle('webtube-pip', enabled);
+        },
         addStyle: addStyle
     };
 })();

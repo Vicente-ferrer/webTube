@@ -24,6 +24,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     WebView webView;
     TorHelper torHelper;
     BackgroundPlayHelper backgroundPlayHelper;
+    PictureInPictureHelper pictureInPictureHelper;
     View appWindow;
     ActionMenuView actionMenu;
     SharedPreferences sp;
@@ -32,11 +33,13 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
 
     public static final String PREF_COOKIES_ENABLED = "cookiesEnabled";
 
-    public MenuHelper(Context context, WebView webView, TorHelper torHelper, BackgroundPlayHelper backgroundPlayHelper, View appWindow) {
+    public MenuHelper(Context context, WebView webView, TorHelper torHelper, BackgroundPlayHelper backgroundPlayHelper,
+                      PictureInPictureHelper pictureInPictureHelper, View appWindow) {
         this.context = context;
         this.webView = webView;
         this.torHelper = torHelper;
         this.backgroundPlayHelper = backgroundPlayHelper;
+        this.pictureInPictureHelper = pictureInPictureHelper;
         this.appWindow = appWindow;
 
         sp = PreferenceManager.getDefaultSharedPreferences(context);
@@ -71,6 +74,9 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
         PackageManager pm = context.getPackageManager();
 
         menu.findItem(R.id.action_backgroundPlay).setChecked(sp.getBoolean(BackgroundPlayHelper.PREF_BACKGROUND_PLAY_ENABLED, true));
+        menu.findItem(R.id.action_pictureInPicture)
+                .setVisible(PictureInPictureHelper.isSupported(context))
+                .setChecked(pictureInPictureHelper.isPictureInPictureEnabled());
         menu.findItem(R.id.action_accept_cookies).setChecked(sp.getBoolean(PREF_COOKIES_ENABLED, true));
 
         // Tor button
@@ -164,6 +170,16 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                     item.setChecked(false);
                 } else {
                     backgroundPlayHelper.enableBackgroundPlay();
+                    item.setChecked(true);
+                }
+                return true;
+
+            case R.id.action_pictureInPicture:
+                if (pictureInPictureHelper.isPictureInPictureEnabled()) {
+                    pictureInPictureHelper.disablePictureInPicture();
+                    item.setChecked(false);
+                } else {
+                    pictureInPictureHelper.enablePictureInPicture();
                     item.setChecked(true);
                 }
                 return true;
