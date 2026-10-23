@@ -32,4 +32,23 @@
     <string name="close">Fechar</string>
     <string name="advertisement">Anúncio</string>
     <string name="pictureInPicture">Picture-in-picture</string>
+    <string name="contentBlocker">Bloqueador de conteúdo</string>
+    <string name="filterLists">Listas de filtros</string>
+    <string name="contentBlockerWarningTitle">Ativar o bloqueador de conteúdo?</string>
+    <string name="contentBlockerWarning">O bloqueador segue listas de filtros públicas que você escolhe (EasyList, uBlock Origin). O WebTube não tem regras próprias.\n\nBloquear anúncios do YouTube vai contra os Termos de Serviço do YouTube. O YouTube pode detectar o bloqueio, atrasar ou impedir a reprodução, ou restringir a sua conta. A decisão de usar é sua, por sua conta e risco.\n\nO YouTube Premium remove os anúncios dentro dos Termos de Serviço.</string>
+    <string name="contentBlockerDownloading">Baixando as listas de filtros…</string>
+    <string name="contentBlockerReady">Bloqueador de conteúdo ativado</string>
+    <string name="contentBlockerOn">O bloqueador está ativado. Toque numa lista para ativá-la ou desativá-la.</string>
+    <string name="contentBlockerOff">O bloqueador está desativado. Ative-o no menu.</string>
+    <string name="addFilterList">Adicionar lista</string>
+    <string name="updateFilterLists">Atualizar agora</string>
+    <string name="removeFilterList">Remover esta lista?</string>
+    <string name="filterListNotDownloaded">Ainda não baixada</string>
+    <string name="filterListUpdated">Atualizada em %s</string>
+    <string name="filterListRules">%1$d regras · atualizada em %2$s</string>
+    <string name="updatingFilterLists">Atualizando as listas de filtros…</string>
+    <string name="filterListsTor">As listas de filtros não são baixadas com o Tor ativado.</string>
+    <string name="filterListBadUrl">Digite um endereço https://</string>
+    <string name="filterListsUpdated">Listas de filtros atualizadas</string>
+    <string name="filterListsUpdateFailed">Não foi possível atualizar %s</string>
 </resources>

@@ -34,4 +34,23 @@
     <string name="close">Close</string>
     <string name="advertisement">Advertisement</string>
     <string name="pictureInPicture">Picture-in-picture</string>
+    <string name="contentBlocker">Content blocker</string>
+    <string name="filterLists">Filter lists</string>
+    <string name="contentBlockerWarningTitle">Turn on the content blocker?</string>
+    <string name="contentBlockerWarning">The content blocker follows public filter lists that you choose (EasyList, uBlock Origin). WebTube has no rules of its own.\n\nBlocking YouTube ads goes against YouTube\'s Terms of Service. YouTube may detect it, delay or block playback, or restrict your account. You decide whether to use it, at your own risk.\n\nYouTube Premium removes ads within the Terms of Service.</string>
+    <string name="contentBlockerDownloading">Downloading filter lists…</string>
+    <string name="contentBlockerReady">Content blocker on</string>
+    <string name="contentBlockerOn">The content blocker is on. Tap a list to turn it on or off.</string>
+    <string name="contentBlockerOff">The content blocker is off. Turn it on in the menu.</string>
+    <string name="addFilterList">Add list</string>
+    <string name="updateFilterLists">Update now</string>
+    <string name="removeFilterList">Remove this list?</string>
+    <string name="filterListNotDownloaded">Not downloaded yet</string>
+    <string name="filterListUpdated">Updated %s</string>
+    <string name="filterListRules">%1$d rules · updated %2$s</string>
+    <string name="updatingFilterLists">Updating filter lists…</string>
+    <string name="filterListsTor">Filter lists are not downloaded while Tor is on.</string>
+    <string name="filterListBadUrl">Enter an https:// address</string>
+    <string name="filterListsUpdated">Filter lists updated</string>
+    <string name="filterListsUpdateFailed">Could not update %s</string>
 </resources>

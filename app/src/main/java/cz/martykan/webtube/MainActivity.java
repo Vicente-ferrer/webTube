@@ -12,6 +12,8 @@ import android.preference.PreferenceManager;
 import com.google.android.material.navigation.NavigationView;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.Lifecycle;
+
+import cz.martykan.webtube.adblock.ContentBlocker;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.ActionMenuView;
 import android.view.View;
@@ -43,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     MenuHelper menuHelper;
     PlayerController playerController;
     PictureInPictureHelper pictureInPictureHelper;
+    ContentBlocker contentBlocker;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +75,9 @@ public class MainActivity extends AppCompatActivity {
         PlayerBridge playerBridge = new PlayerBridge(this, webView, playerController);
         playerBridge.install();
 
+        // Filter lists: blocked requests, hidden elements and scriptlets
+        contentBlocker = new ContentBlocker(this, webView);
+
         // Background playback, notification and lock screen controls
         playerController.addListener(state -> {
             if (state.playing && backgroundPlayHelper.isBackgroundPlayEnabled()) {
@@ -84,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Set up WebViewClient
         webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.menu_main),
-                playerBridge, playerController));
+                playerBridge, playerController, contentBlocker));
 
         // Set up WebView
         setUpWebview();
@@ -127,16 +133,18 @@ public class MainActivity extends AppCompatActivity {
 
         // Menu helper
         ActionMenuView actionMenu = findViewById(R.id.menu_main);
-        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, pictureInPictureHelper, appWindow);
+        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, pictureInPictureHelper, contentBlocker, appWindow);
         getMenuInflater().inflate(R.menu.menu_main, actionMenu.getMenu());
         menuHelper.setUpMenu(actionMenu, drawerLayout, findViewById(R.id.bookmarks_panel));
         actionMenu.setOverflowIcon(getResources().getDrawable(R.drawable.ic_dots_vertical_white_24dp));
 
 
-        // Load the page
-        if (!loadUrlFromIntent(getIntent())) {
-            webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
-        }
+        // Load the page, once the content blocker rules are in place
+        contentBlocker.start(() -> {
+            if (!loadUrlFromIntent(getIntent())) {
+                webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
+            }
+        });
     }
 
     @Override
@@ -176,6 +184,7 @@ public class MainActivity extends AppCompatActivity {
     public void onDestroy() {
         super.onDestroy();
         pictureInPictureHelper.unregister();
+        contentBlocker.release();
         // The WebView playing the video dies with this activity
         PlaybackService.stop(this);
         playerController.release();

@@ -8,8 +8,12 @@ import android.preference.PreferenceManager;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.core.content.ContextCompat;
 import android.view.View;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import cz.martykan.webtube.adblock.ContentBlocker;
 
 public class WebTubeWebViewClient extends WebViewClient {
     Context context;
@@ -19,9 +23,10 @@ public class WebTubeWebViewClient extends WebViewClient {
     View bottomBar;
     PlayerBridge playerBridge;
     PlayerController playerController;
+    ContentBlocker contentBlocker;
 
     public WebTubeWebViewClient(Context context, View appWindow, View.OnClickListener clickListener, View statusBarSpace, View bottomBar,
-                                PlayerBridge playerBridge, PlayerController playerController) {
+                                PlayerBridge playerBridge, PlayerController playerController, ContentBlocker contentBlocker) {
         this.context = context;
         this.clickListener = clickListener;
         this.appWindow = appWindow;
@@ -29,6 +34,7 @@ public class WebTubeWebViewClient extends WebViewClient {
         this.bottomBar = bottomBar;
         this.playerBridge = playerBridge;
         this.playerController = playerController;
+        this.contentBlocker = contentBlocker;
     }
 
     // Open links in a browser window (except for sign-in dialogs and YouTube URLs)
@@ -45,7 +51,16 @@ public class WebTubeWebViewClient extends WebViewClient {
     @Override
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
         super.onPageStarted(view, url, favicon);
+        contentBlocker.onPageChanged(url);
+        contentBlocker.onPageStarted(url);
         playerBridge.onPageStarted(url);
+    }
+
+    // Runs on a network thread
+    @Override
+    public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+        WebResourceResponse blocked = contentBlocker.intercept(request);
+        return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
     }
 
     // Called for full page loads and for YouTube's in-page (history.pushState) navigation
@@ -53,6 +68,7 @@ public class WebTubeWebViewClient extends WebViewClient {
     public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
         super.doUpdateVisitedHistory(view, url, isReload);
         playerController.onPageChanged(url);
+        contentBlocker.onPageChanged(url);
 
         // To adapt the statusbar color
         statusBarSpace.setVisibility(View.VISIBLE);

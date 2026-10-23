@@ -52,6 +52,18 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_content_blocker"
+        android:checkable="true"
+        android:checked="false"
+        android:title="@string/contentBlocker"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_filter_lists"
+        android:title="@string/filterLists"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_tor"
         android:checkable="true"
         android:checked="false"

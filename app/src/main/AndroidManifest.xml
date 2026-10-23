@@ -75,6 +75,11 @@
 
             </intent-filter>
         </activity>
+        <activity
+            android:name=".adblock.FilterListsActivity"
+            android:exported="false"
+            android:label="@string/filterLists" />
+
         <service
             android:name=".PlaybackService"
             android:exported="false"

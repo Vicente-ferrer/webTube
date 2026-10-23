@@ -17,6 +17,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.webkit.WebView;
 
+import cz.martykan.webtube.adblock.ContentBlocker;
+import cz.martykan.webtube.adblock.FilterListsActivity;
 import info.guardianproject.netcipher.proxy.OrbotHelper;
 
 public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
@@ -25,6 +27,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     TorHelper torHelper;
     BackgroundPlayHelper backgroundPlayHelper;
     PictureInPictureHelper pictureInPictureHelper;
+    ContentBlocker contentBlocker;
     View appWindow;
     ActionMenuView actionMenu;
     SharedPreferences sp;
@@ -34,12 +37,13 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     public static final String PREF_COOKIES_ENABLED = "cookiesEnabled";
 
     public MenuHelper(Context context, WebView webView, TorHelper torHelper, BackgroundPlayHelper backgroundPlayHelper,
-                      PictureInPictureHelper pictureInPictureHelper, View appWindow) {
+                      PictureInPictureHelper pictureInPictureHelper, ContentBlocker contentBlocker, View appWindow) {
         this.context = context;
         this.webView = webView;
         this.torHelper = torHelper;
         this.backgroundPlayHelper = backgroundPlayHelper;
         this.pictureInPictureHelper = pictureInPictureHelper;
+        this.contentBlocker = contentBlocker;
         this.appWindow = appWindow;
 
         sp = PreferenceManager.getDefaultSharedPreferences(context);
@@ -77,6 +81,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
         menu.findItem(R.id.action_pictureInPicture)
                 .setVisible(PictureInPictureHelper.isSupported(context))
                 .setChecked(pictureInPictureHelper.isPictureInPictureEnabled());
+        menu.findItem(R.id.action_content_blocker).setChecked(contentBlocker.isEnabled());
         menu.findItem(R.id.action_accept_cookies).setChecked(sp.getBoolean(PREF_COOKIES_ENABLED, true));
 
         // Tor button
@@ -103,6 +108,18 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
         dialog.setButton(DialogInterface.BUTTON_POSITIVE, context.getString(android.R.string.ok).toUpperCase(),
                 (dialog1, buttonId) -> dialog1.dismiss());
         dialog.show();
+    }
+
+    // The first time, the filter lists are downloaded before the page reloads
+    private void enableContentBlocker(MenuItem item) {
+        item.setChecked(true);
+        Snackbar.make(appWindow, context.getString(R.string.contentBlockerDownloading), Snackbar.LENGTH_INDEFINITE).show();
+        contentBlocker.setEnabled(true, () -> {
+            String error = contentBlocker.getLastError();
+            Snackbar.make(appWindow, error == null ? context.getString(R.string.contentBlockerReady)
+                    : context.getString(R.string.filterListsUpdateFailed, error), Snackbar.LENGTH_LONG).show();
+            webView.reload();
+        });
     }
 
     @Override
@@ -172,6 +189,30 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                     backgroundPlayHelper.enableBackgroundPlay();
                     item.setChecked(true);
                 }
+                return true;
+
+            case R.id.action_content_blocker:
+                if (contentBlocker.isEnabled()) {
+                    item.setChecked(false);
+                    contentBlocker.setEnabled(false, webView::reload);
+                } else if (contentBlocker.isWarningAccepted()) {
+                    enableContentBlocker(item);
+                } else {
+                    // The user decides, knowing what blocking ads means for the YouTube Terms of Service
+                    new AlertDialog.Builder(context)
+                            .setTitle(R.string.contentBlockerWarningTitle)
+                            .setMessage(R.string.contentBlockerWarning)
+                            .setPositiveButton(R.string.enable, (dialog, which) -> {
+                                contentBlocker.acceptWarning();
+                                enableContentBlocker(item);
+                            })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
+                }
+                return true;
+
+            case R.id.action_filter_lists:
+                context.startActivity(new Intent(context, FilterListsActivity.class));
                 return true;
 
             case R.id.action_pictureInPicture:
