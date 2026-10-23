@@ -29,9 +29,6 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.ServiceCompat;
 import androidx.core.content.ContextCompat;
-import androidx.media.AudioAttributesCompat;
-import androidx.media.AudioFocusRequestCompat;
-import androidx.media.AudioManagerCompat;
 
 import java.io.InputStream;
 import java.net.HttpURLConnection;
@@ -57,12 +54,10 @@ public class PlaybackService extends Service implements PlayerController.Listene
     private MediaSessionCompat mediaSession;
     private PlaybackState state = PlaybackState.NONE;
 
+    // Audio focus is not handled here: the WebView requests it for the <video>
+    // and pauses on its own, and a second request would make it pause right away
     private PowerManager.WakeLock wakeLock;
     private WifiManager.WifiLock wifiLock;
-    private AudioManager audioManager;
-    private AudioFocusRequestCompat audioFocusRequest;
-    private boolean hasAudioFocus;
-    private boolean resumeOnFocusGain;
     private boolean noisyReceiverRegistered;
 
     private final ExecutorService artworkLoader = Executors.newSingleThreadExecutor();
@@ -143,15 +138,6 @@ public class PlaybackService extends Service implements PlayerController.Listene
         //noinspection deprecation: still the right lock to keep streaming with the screen off
         wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "webTube:playback");
         wifiLock.setReferenceCounted(false);
-
-        audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-        audioFocusRequest = new AudioFocusRequestCompat.Builder(AudioManagerCompat.AUDIOFOCUS_GAIN)
-                .setAudioAttributes(new AudioAttributesCompat.Builder()
-                        .setUsage(AudioAttributesCompat.USAGE_MEDIA)
-                        .setContentType(AudioAttributesCompat.CONTENT_TYPE_MOVIE)
-                        .build())
-                .setOnAudioFocusChangeListener(this::onAudioFocusChange)
-                .build();
     }
 
     @Override
@@ -193,15 +179,11 @@ public class PlaybackService extends Service implements PlayerController.Listene
         if (state.playing) {
             wakeLock.acquire();
             wifiLock.acquire();
-            requestAudioFocus();
             registerNoisyReceiver();
         } else {
             wakeLock.release();
             wifiLock.release();
             unregisterNoisyReceiver();
-            if (!resumeOnFocusGain) {
-                abandonAudioFocus();
-            }
         }
         loadArtwork();
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
@@ -224,7 +206,6 @@ public class PlaybackService extends Service implements PlayerController.Listene
         wakeLock.release();
         wifiLock.release();
         unregisterNoisyReceiver();
-        abandonAudioFocus();
         mediaSession.setActive(false);
         mediaSession.release();
         artworkLoader.shutdownNow();
@@ -337,44 +318,6 @@ public class PlaybackService extends Service implements PlayerController.Listene
                 Log.w(LOG_TAG, "Could not load artwork for " + videoId, e);
             }
         });
-    }
-
-    private void requestAudioFocus() {
-        if (!hasAudioFocus) {
-            hasAudioFocus = AudioManagerCompat.requestAudioFocus(audioManager, audioFocusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-        }
-        resumeOnFocusGain = false;
-    }
-
-    private void abandonAudioFocus() {
-        if (hasAudioFocus) {
-            AudioManagerCompat.abandonAudioFocusRequest(audioManager, audioFocusRequest);
-            hasAudioFocus = false;
-        }
-        resumeOnFocusGain = false;
-    }
-
-    // Ducking (AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) is done by the system
-    private void onAudioFocusChange(int focusChange) {
-        switch (focusChange) {
-            case AudioManager.AUDIOFOCUS_GAIN:
-                if (resumeOnFocusGain) {
-                    resumeOnFocusGain = false;
-                    playerController.play();
-                }
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                if (state.playing) {
-                    resumeOnFocusGain = true;
-                    playerController.pause();
-                }
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS:
-                hasAudioFocus = false;
-                resumeOnFocusGain = false;
-                playerController.pause();
-                break;
-        }
     }
 
     private void registerNoisyReceiver() {
