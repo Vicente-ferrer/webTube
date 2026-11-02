@@ -19,13 +19,22 @@
             android:name=".MainActivity"
             android:exported="true"
             android:alwaysRetainTaskState="true"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
             android:supportsPictureInPicture="true"
+            android:windowSoftInputMode="adjustResize"
             android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Links shared from other apps, or text to search for -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="text/plain" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

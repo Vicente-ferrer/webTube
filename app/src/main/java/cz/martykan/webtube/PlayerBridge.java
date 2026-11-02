@@ -72,8 +72,11 @@ public class PlayerBridge {
     private void onMessage(String data) {
         try {
             JSONObject json = new JSONObject(data);
-            if ("state".equals(json.optString("type"))) {
+            String type = json.optString("type");
+            if ("state".equals(type)) {
                 playerController.onStateReported(new PlaybackState(json));
+            } else if ("skipped".equals(type)) {
+                playerController.onSegmentSkipped(json.optString("category"));
             }
         } catch (JSONException e) {
             Log.w(LOG_TAG, "Bad message from page: " + data);

@@ -53,4 +53,31 @@
     <string name="filterListBadUrl">Enter an https:// address</string>
     <string name="filterListsUpdated">Filter lists updated</string>
     <string name="filterListsUpdateFailed">Could not update %s</string>
+    <string name="sleepTimer">Sleep timer</string>
+    <string name="sleepTimerRemaining">Sleep timer · %d min left</string>
+    <string name="sleepTimerAtEndOfVideo">Sleep timer · end of video</string>
+    <string name="sleepTimerSet">The video pauses in %d min</string>
+    <string name="sleepTimerSetAtEndOfVideo">The video pauses when this one ends</string>
+    <string name="sleepTimerOff">Sleep timer off</string>
+    <string-array name="sleepTimerOptions">
+        <item>Off</item>
+        <item>15 minutes</item>
+        <item>30 minutes</item>
+        <item>45 minutes</item>
+        <item>1 hour</item>
+        <item>2 hours</item>
+        <item>End of video</item>
+    </string-array>
+    <string name="appearance">Appearance</string>
+    <string-array name="themes">
+        <item>Device theme</item>
+        <item>Light</item>
+        <item>Dark</item>
+    </string-array>
+    <string name="sponsorBlock" translatable="false">SponsorBlock</string>
+    <string name="sponsorBlockInfo">Skips sponsored segments, self-promotion and reminders to like or subscribe, as marked by the SponsorBlock community (sponsor.ajay.app).\n\nFor each video, WebTube asks the SponsorBlock server for the segments using only the first characters of a hash of the video ID. It does not work while Tor is on.</string>
+    <string name="sponsorSkipped">Sponsor skipped</string>
+    <string name="selfPromotionSkipped">Self-promotion skipped</string>
+    <string name="interactionReminderSkipped">Interaction reminder skipped</string>
+    <string name="segmentSkipped">Segment skipped</string>
 </resources>

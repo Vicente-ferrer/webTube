@@ -52,6 +52,18 @@
         app:showAsAction="never" />
 
     <item
+        android:id="@+id/action_sleep_timer"
+        android:title="@string/sleepTimer"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_sponsorblock"
+        android:checkable="true"
+        android:checked="false"
+        android:title="@string/sponsorBlock"
+        app:showAsAction="never" />
+
+    <item
         android:id="@+id/action_content_blocker"
         android:checkable="true"
         android:checked="false"
@@ -61,6 +73,11 @@
     <item
         android:id="@+id/action_filter_lists"
         android:title="@string/filterLists"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_theme"
+        android:title="@string/appearance"
         app:showAsAction="never" />
 
     <item

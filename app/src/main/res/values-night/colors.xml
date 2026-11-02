@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Close to YouTube's dark theme, keeping red only as the accent -->
+    <color name="colorPrimary">#212121</color>
+    <color name="colorPrimaryDark">#121212</color>
+    <color name="colorWatch">#0F0F0F</color>
+    <color name="colorWatchDark">#000000</color>
+    <color name="bookmarksHeader">#333333</color>
+    <color name="pageBackground">#0F0F0F</color>
+</resources>

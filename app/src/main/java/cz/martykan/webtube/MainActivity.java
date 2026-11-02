@@ -10,6 +10,11 @@ import android.os.Build;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import com.google.android.material.navigation.NavigationView;
+import androidx.activity.EdgeToEdge;
+import androidx.activity.SystemBarStyle;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.lifecycle.Lifecycle;
 
@@ -46,6 +51,12 @@ public class MainActivity extends AppCompatActivity {
     PlayerController playerController;
     PictureInPictureHelper pictureInPictureHelper;
     ContentBlocker contentBlocker;
+    SponsorBlock sponsorBlock;
+    WebTubeChromeClient chromeClient;
+
+    // Light or dark, as the views and the page were created
+    private int nightMode;
+    private boolean recreating;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +66,12 @@ public class MainActivity extends AppCompatActivity {
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
                 WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED);
 
+        ThemeHelper.apply(this);
         super.onCreate(savedInstanceState);
+        nightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        // The status bar is drawn over statusBarSpace and the navigation bar over the bottom bar,
+        // both dark or red, so their icons are always light
+        EdgeToEdge.enable(this, SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT));
         setContentView(R.layout.activity_main);
 
         webView = findViewById(R.id.webView);
@@ -66,17 +82,22 @@ public class MainActivity extends AppCompatActivity {
         sp = PreferenceManager.getDefaultSharedPreferences(this);
         DrawerLayout drawerLayout = findViewById(R.id.drawer_layout);
         navigationView = findViewById(R.id.bookmarks_panel);
-
-        // Set up WebChromeClient
-        webView.setWebChromeClient(new WebTubeChromeClient(webView, progress, customViewContainer, drawerLayout, getWindow().getDecorView()));
+        setUpWindowInsets(appWindow);
 
         // Bridge between the page's <video> and the app
         playerController = new PlayerController(webView);
         PlayerBridge playerBridge = new PlayerBridge(this, webView, playerController);
         playerBridge.install();
 
+        // Set up WebChromeClient
+        chromeClient = new WebTubeChromeClient(this, webView, progress, customViewContainer, drawerLayout, playerController);
+        webView.setWebChromeClient(chromeClient);
+
         // Filter lists: blocked requests, hidden elements and scriptlets
         contentBlocker = new ContentBlocker(this, webView);
+
+        // Sponsored segments skipped
+        sponsorBlock = new SponsorBlock(this, playerController);
 
         // Background playback, notification and lock screen controls
         playerController.addListener(state -> {
@@ -84,12 +105,13 @@ public class MainActivity extends AppCompatActivity {
                 PlaybackService.start(this);
             }
             pictureInPictureHelper.update();
+            recreateIfThemeChanged();
         });
         webView.setBackgroundPolicy(() ->
                 backgroundPlayHelper.isBackgroundPlayEnabled() && playerController.getState().hasVideo());
 
         // Set up WebViewClient
-        webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.menu_main),
+        webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.bottomBar),
                 playerBridge, playerController, contentBlocker));
 
         // Set up WebView
@@ -133,7 +155,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Menu helper
         ActionMenuView actionMenu = findViewById(R.id.menu_main);
-        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, pictureInPictureHelper, contentBlocker, appWindow);
+        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, pictureInPictureHelper, contentBlocker,
+                sponsorBlock, playerController, appWindow);
         getMenuInflater().inflate(R.menu.menu_main, actionMenu.getMenu());
         menuHelper.setUpMenu(actionMenu, drawerLayout, findViewById(R.id.bookmarks_panel));
         actionMenu.setOverflowIcon(getResources().getDrawable(R.drawable.ic_dots_vertical_white_24dp));
@@ -141,10 +164,44 @@ public class MainActivity extends AppCompatActivity {
 
         // Load the page, once the content blocker rules are in place
         contentBlocker.start(() -> {
+            // Recreated for a new theme: back to the same pages
+            if (savedInstanceState != null && webView.restoreState(savedInstanceState) != null) {
+                return;
+            }
             if (!loadUrlFromIntent(getIntent())) {
                 webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
             }
         });
+    }
+
+    // The app draws behind the status and navigation bars, so make room for them
+    // (and for the keyboard), coloring them like statusBarSpace and the bottom bar
+    private void setUpWindowInsets(View appWindow) {
+        View statusBarSpace = findViewById(R.id.statusBarSpace);
+        View content = findViewById(R.id.content);
+        View bottomBar = findViewById(R.id.bottomBar);
+        View bookmarksHeader = navigationView.getHeaderView(0);
+        int bottomBarHeight = getResources().getDimensionPixelSize(R.dimen.bottom_bar_height);
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.drawer_layout), (view, windowInsets) -> {
+            Insets bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
+            int keyboard = windowInsets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            // The keyboard covers the navigation bar and pushes the bottom bar up
+            int navigationBar = keyboard > 0 ? 0 : bars.bottom;
+            appWindow.setPadding(bars.left, 0, bars.right, 0);
+            content.setPadding(0, 0, 0, keyboard);
+            statusBarSpace.getLayoutParams().height = bars.top;
+            statusBarSpace.requestLayout();
+            bottomBar.getLayoutParams().height = bottomBarHeight + navigationBar;
+            bottomBar.setPadding(0, 0, 0, navigationBar);
+            bookmarksHeader.setPadding(0, bars.top, 0, 0);
+            return WindowInsetsCompat.CONSUMED;
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        recreateIfThemeChanged();
     }
 
     @Override
@@ -156,6 +213,37 @@ public class MainActivity extends AppCompatActivity {
         if (!backgroundPlayHelper.isBackgroundPlayEnabled() && !inPictureInPicture) {
             playerController.pause();
         }
+    }
+
+    // The manifest keeps the system from recreating the activity when dark mode turns on or off
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        recreateIfThemeChanged();
+    }
+
+    // Recreating reloads the page, so the new theme waits until no video is open
+    // (dark mode can turn on at bedtime, while a video plays in the background)
+    private void recreateIfThemeChanged() {
+        int currentNightMode = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        if (currentNightMode != nightMode && !playerController.getState().hasVideo()
+                && getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.RESUMED)) {
+            recreateWithState();
+        }
+    }
+
+    // Like recreate(), keeping the open pages (onSaveInstanceState)
+    public void recreateWithState() {
+        if (!recreating) {
+            recreating = true;
+            recreate();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        webView.saveState(outState);
     }
 
     @Override
@@ -185,6 +273,7 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         pictureInPictureHelper.unregister();
         contentBlocker.release();
+        sponsorBlock.release();
         // The WebView playing the video dies with this activity
         PlaybackService.stop(this);
         playerController.release();
@@ -196,19 +285,22 @@ public class MainActivity extends AppCompatActivity {
         loadUrlFromIntent(intent);
     }
 
+    // A YouTube link opened (ACTION_VIEW) or shared (ACTION_SEND) with the app
     private boolean loadUrlFromIntent(final Intent intent) {
-
+        String url = null;
         if (Intent.ACTION_VIEW.equals(intent.getAction()) && intent.getData() != null) {
-            final String url = intent.getData().toString();
-
-            if (!url.equals(webView.getUrl())) {
-                webView.loadUrl(url);
-            }
-
-            return true;
-        } else {
+            url = intent.getData().toString();
+        } else if (Intent.ACTION_SEND.equals(intent.getAction())) {
+            url = SharedLinks.urlFor(intent.getStringExtra(Intent.EXTRA_TEXT));
+        }
+        if (url == null) {
             return false;
         }
+
+        if (!url.equals(webView.getUrl())) {
+            webView.loadUrl(url);
+        }
+        return true;
     }
 
     public void setUpWebview() {
@@ -236,13 +328,17 @@ public class MainActivity extends AppCompatActivity {
 
         webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
 
-        webView.setBackgroundColor(Color.WHITE);
+        // Background color and dark mode of the pages
+        ThemeHelper.setUpWebView(webView);
         webView.setScrollbarFadingEnabled(true);
         webView.setNetworkAvailable(true);
     }
 
     @Override
     public void onBackPressed() {
+        if (chromeClient.exitFullscreen()) {
+            return;
+        }
         if (webView.canGoBack()) {
             webView.goBack();
         } else {

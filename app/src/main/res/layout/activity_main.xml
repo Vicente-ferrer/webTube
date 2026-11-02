@@ -16,16 +16,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent">
 
+            <!-- Behind the status bar; its height comes from the window insets -->
             <View
                 android:id="@+id/statusBarSpace"
                 android:layout_width="match_parent"
-                android:layout_height="24dp"
-                android:background="@color/colorPrimaryDark"
-                android:visibility="gone">
-
-            </View>
+                android:layout_height="0dp"
+                android:background="@color/colorPrimary" />
 
             <RelativeLayout
+                android:id="@+id/content"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_below="@id/statusBarSpace">
@@ -37,10 +36,11 @@
                     android:layout_above="@+id/bottomBar"
                     android:layout_alignParentTop="true" />
 
+                <!-- Also drawn behind the navigation bar -->
                 <RelativeLayout
                     android:id="@+id/bottomBar"
                     android:layout_width="match_parent"
-                    android:layout_height="56dp"
+                    android:layout_height="@dimen/bottom_bar_height"
                     android:layout_alignParentBottom="true"
                     android:background="@color/colorPrimary">
 
@@ -49,8 +49,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="?attr/actionBarSize"
                         android:layout_alignParentBottom="true"
-                        android:layout_gravity="center"
-                        android:background="?attr/colorPrimary" />
+                        android:layout_gravity="center" />
 
 
                     <ProgressBar

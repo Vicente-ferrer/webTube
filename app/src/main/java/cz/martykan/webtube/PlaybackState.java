@@ -19,6 +19,8 @@ public class PlaybackState {
     public final String title;
     public final String artist;
     public final String artworkUrl;
+    // The video whose SponsorBlock segments the page has, empty when none
+    public final String skipSegmentsVideoId;
     // When positionMs was measured, to extrapolate the current position
     public final long updateTime;
 
@@ -38,6 +40,7 @@ public class PlaybackState {
         title = json.optString("title");
         artist = json.optString("artist");
         artworkUrl = json.optString("artwork");
+        skipSegmentsVideoId = json.optString("skipVideoId");
         updateTime = SystemClock.elapsedRealtime();
     }
 

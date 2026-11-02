@@ -48,4 +48,6 @@ dependencies {
     implementation files('libs/netcipher-webkit-2.1.0-stripped.jar')
 
     testImplementation 'junit:junit:4.12'
+    // The org.json in android.jar is only stubs in local unit tests
+    testImplementation 'org.json:json:20231013'
 }

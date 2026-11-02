@@ -7,12 +7,16 @@
     var actionHandlers = {};
     var lastReport = '';
 
+    function post(message) {
+        if (bridge) bridge.postMessage(JSON.stringify(message));
+    }
+
+    // Only when the state changed
     function send(message) {
-        if (!bridge) return;
         var json = JSON.stringify(message);
         if (json === lastReport) return;
         lastReport = json;
-        bridge.postMessage(json);
+        post(message);
     }
 
     function addStyle(css) {
@@ -123,8 +127,25 @@
             url: location.href,
             title: lastTitle,
             artist: (meta && meta.artist) || '',
-            artwork: artwork
+            artwork: artwork,
+            skipVideoId: skip.videoId
         });
+    }
+
+    // SponsorBlock segments of a video, from SponsorBlock.java: [[start, end, category], ...] in seconds
+    var skip = {videoId: '', segments: [], skipped: {}};
+
+    function skipSegments(v) {
+        if (!skip.segments.length || skip.videoId !== videoId() || isAd()) return;
+        for (var i = 0; i < skip.segments.length; i++) {
+            var segment = skip.segments[i];
+            // Once each, so seeking back into a segment plays it
+            if (!skip.skipped[i] && v.currentTime >= segment[0] && v.currentTime < segment[1] - 0.5) {
+                skip.skipped[i] = true;
+                v.currentTime = segment[1];
+                post({type: 'skipped', category: segment[2]});
+            }
+        }
     }
 
     ['play', 'playing', 'pause', 'ended', 'seeked', 'ratechange', 'loadedmetadata', 'durationchange', 'emptied'].forEach(function (type) {
@@ -135,7 +156,9 @@
 
     // YouTube renames the page after the video starts, and when autoplay moves to the next one
     document.addEventListener('timeupdate', function (e) {
-        if (e.target instanceof HTMLVideoElement && title() !== lastTitle) report();
+        if (!(e.target instanceof HTMLVideoElement)) return;
+        if (title() !== lastTitle) report();
+        skipSegments(e.target);
     }, true);
 
     function callAction(action, details) {
@@ -162,6 +185,12 @@
         report: function () { lastReport = ''; report(); },
         setPictureInPicture: function (enabled) {
             document.documentElement.classList.toggle('webtube-pip', enabled);
+        },
+        setSkipSegments: function (id, segments) {
+            if (id === skip.videoId) return;
+            skip = {videoId: id, segments: segments, skipped: {}};
+            lastReport = '';
+            report();
         },
         addStyle: addStyle
     };

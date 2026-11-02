@@ -1,11 +1,13 @@
 package cz.martykan.webtube;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.preference.PreferenceManager;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.drawerlayout.widget.DrawerLayout;
@@ -28,6 +30,8 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     BackgroundPlayHelper backgroundPlayHelper;
     PictureInPictureHelper pictureInPictureHelper;
     ContentBlocker contentBlocker;
+    SponsorBlock sponsorBlock;
+    PlayerController playerController;
     View appWindow;
     ActionMenuView actionMenu;
     SharedPreferences sp;
@@ -36,14 +40,20 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
 
     public static final String PREF_COOKIES_ENABLED = "cookiesEnabled";
 
+    // In the order of R.array.sleepTimerOptions: off, minutes, end of the video
+    private static final int[] SLEEP_TIMER_MINUTES = {0, 15, 30, 45, 60, 120, -1};
+
     public MenuHelper(Context context, WebView webView, TorHelper torHelper, BackgroundPlayHelper backgroundPlayHelper,
-                      PictureInPictureHelper pictureInPictureHelper, ContentBlocker contentBlocker, View appWindow) {
+                      PictureInPictureHelper pictureInPictureHelper, ContentBlocker contentBlocker, SponsorBlock sponsorBlock,
+                      PlayerController playerController, View appWindow) {
         this.context = context;
         this.webView = webView;
         this.torHelper = torHelper;
         this.backgroundPlayHelper = backgroundPlayHelper;
         this.pictureInPictureHelper = pictureInPictureHelper;
         this.contentBlocker = contentBlocker;
+        this.sponsorBlock = sponsorBlock;
+        this.playerController = playerController;
         this.appWindow = appWindow;
 
         sp = PreferenceManager.getDefaultSharedPreferences(context);
@@ -81,6 +91,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
         menu.findItem(R.id.action_pictureInPicture)
                 .setVisible(PictureInPictureHelper.isSupported(context))
                 .setChecked(pictureInPictureHelper.isPictureInPictureEnabled());
+        menu.findItem(R.id.action_sponsorblock).setChecked(sponsorBlock.isEnabled());
         menu.findItem(R.id.action_content_blocker).setChecked(contentBlocker.isEnabled());
         menu.findItem(R.id.action_accept_cookies).setChecked(sp.getBoolean(PREF_COOKIES_ENABLED, true));
 
@@ -122,6 +133,50 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
         });
     }
 
+    private void showSleepTimerDialog() {
+        String title;
+        long remainingMs = playerController.getSleepTimerRemainingMs();
+        if (playerController.isSleepingAtEndOfVideo()) {
+            title = context.getString(R.string.sleepTimerAtEndOfVideo);
+        } else if (remainingMs > 0) {
+            title = context.getString(R.string.sleepTimerRemaining, (int) Math.ceil(remainingMs / 60000.0));
+        } else {
+            title = context.getString(R.string.sleepTimer);
+        }
+        new AlertDialog.Builder(context)
+                .setTitle(title)
+                .setItems(R.array.sleepTimerOptions, (dialog, which) -> {
+                    int minutes = SLEEP_TIMER_MINUTES[which];
+                    String message;
+                    if (minutes == 0) {
+                        playerController.cancelSleepTimer();
+                        message = context.getString(R.string.sleepTimerOff);
+                    } else if (minutes < 0) {
+                        playerController.sleepAtEndOfVideo();
+                        message = context.getString(R.string.sleepTimerSetAtEndOfVideo);
+                    } else {
+                        playerController.startSleepTimer(minutes * 60000L);
+                        message = context.getString(R.string.sleepTimerSet, minutes);
+                    }
+                    Snackbar.make(appWindow, message, Snackbar.LENGTH_LONG).show();
+                })
+                .show();
+    }
+
+    private void showThemeDialog() {
+        final int current = ThemeHelper.getTheme(context);
+        new AlertDialog.Builder(context)
+                .setTitle(R.string.appearance)
+                .setSingleChoiceItems(R.array.themes, current, (dialog, which) -> {
+                    dialog.dismiss();
+                    if (which != current) {
+                        ThemeHelper.setTheme(context, which);
+                        ((MainActivity) context).recreateWithState();
+                    }
+                })
+                .show();
+    }
+
     @Override
     public boolean onMenuItemClick(final MenuItem item) {
         switch (item.getItemId()) {
@@ -157,7 +212,13 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                     shareIntent.setAction(Intent.ACTION_SEND);
                     shareIntent.putExtra(Intent.EXTRA_TEXT, webView.getUrl());
                     shareIntent.setType("text/plain");
-                    context.startActivity(Intent.createChooser(shareIntent, context.getResources().getText(R.string.share_with)));
+                    Intent chooser = Intent.createChooser(shareIntent, context.getResources().getText(R.string.share_with));
+                    // The app itself takes shared links too
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                        chooser.putExtra(Intent.EXTRA_EXCLUDE_COMPONENTS,
+                                new ComponentName[]{new ComponentName(context, MainActivity.class)});
+                    }
+                    context.startActivity(chooser);
                 }
                 return true;
 
@@ -213,6 +274,31 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
 
             case R.id.action_filter_lists:
                 context.startActivity(new Intent(context, FilterListsActivity.class));
+                return true;
+
+            case R.id.action_sleep_timer:
+                showSleepTimerDialog();
+                return true;
+
+            case R.id.action_sponsorblock:
+                if (sponsorBlock.isEnabled()) {
+                    sponsorBlock.setEnabled(false);
+                    item.setChecked(false);
+                } else {
+                    new AlertDialog.Builder(context)
+                            .setTitle(R.string.sponsorBlock)
+                            .setMessage(R.string.sponsorBlockInfo)
+                            .setPositiveButton(R.string.enable, (dialog, which) -> {
+                                sponsorBlock.setEnabled(true);
+                                item.setChecked(true);
+                            })
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show();
+                }
+                return true;
+
+            case R.id.action_theme:
+                showThemeDialog();
                 return true;
 
             case R.id.action_pictureInPicture:

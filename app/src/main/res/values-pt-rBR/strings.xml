@@ -51,4 +51,30 @@
     <string name="filterListBadUrl">Digite um endereço https://</string>
     <string name="filterListsUpdated">Listas de filtros atualizadas</string>
     <string name="filterListsUpdateFailed">Não foi possível atualizar %s</string>
+    <string name="sleepTimer">Timer de desligamento</string>
+    <string name="sleepTimerRemaining">Timer de desligamento · faltam %d min</string>
+    <string name="sleepTimerAtEndOfVideo">Timer de desligamento · fim do vídeo</string>
+    <string name="sleepTimerSet">O vídeo pausa em %d min</string>
+    <string name="sleepTimerSetAtEndOfVideo">O vídeo pausa quando este terminar</string>
+    <string name="sleepTimerOff">Timer de desligamento desativado</string>
+    <string-array name="sleepTimerOptions">
+        <item>Desativado</item>
+        <item>15 minutos</item>
+        <item>30 minutos</item>
+        <item>45 minutos</item>
+        <item>1 hora</item>
+        <item>2 horas</item>
+        <item>Fim do vídeo</item>
+    </string-array>
+    <string name="appearance">Aparência</string>
+    <string-array name="themes">
+        <item>Tema do dispositivo</item>
+        <item>Claro</item>
+        <item>Escuro</item>
+    </string-array>
+    <string name="sponsorBlockInfo">Pula patrocínios, autopromoção e lembretes para curtir ou se inscrever, marcados pela comunidade do SponsorBlock (sponsor.ajay.app).\n\nPara cada vídeo, o WebTube consulta o servidor do SponsorBlock usando só os primeiros caracteres de um hash do ID do vídeo. Não funciona com o Tor ativado.</string>
+    <string name="sponsorSkipped">Patrocínio pulado</string>
+    <string name="selfPromotionSkipped">Autopromoção pulada</string>
+    <string name="interactionReminderSkipped">Lembrete de interação pulado</string>
+    <string name="segmentSkipped">Trecho pulado</string>
 </resources>

@@ -71,7 +71,6 @@ public class WebTubeWebViewClient extends WebViewClient {
         contentBlocker.onPageChanged(url);
 
         // To adapt the statusbar color
-        statusBarSpace.setVisibility(View.VISIBLE);
         int colorId = PlayerController.isVideoUrl(url) ? R.color.colorWatch : R.color.colorPrimary;
         statusBarSpace.setBackgroundColor(ContextCompat.getColor(context, colorId));
         bottomBar.setBackgroundColor(ContextCompat.getColor(context, colorId));
