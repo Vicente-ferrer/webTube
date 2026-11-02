@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 import android.webkit.CookieManager;
-import android.webkit.WebView;
 
 import info.guardianproject.netcipher.proxy.OrbotHelper;
 import info.guardianproject.netcipher.webkit.WebkitProxy;
@@ -17,12 +16,12 @@ public class TorHelper {
     private static final int PORT_TOR = 8118;
 
     Context mApplicationContext;
-    WebView webView;
+    Navigator navigator;
     SharedPreferences sp;
 
-    public TorHelper(Context mApplicationContext, WebView webView) {
+    public TorHelper(Context mApplicationContext, Navigator navigator) {
         this.mApplicationContext = mApplicationContext;
-        this.webView = webView;
+        this.navigator = navigator;
 
         sp = PreferenceManager.getDefaultSharedPreferences(mApplicationContext);
     }
@@ -37,7 +36,7 @@ public class TorHelper {
     }
 
     public void torEnable() {
-        CookieHelper.acceptCookies(webView, false);
+        CookieHelper.acceptCookies(navigator, false);
         CookieHelper.deleteCookies();
         //Make sure that all cookies are really deleted
         if (!CookieManager.getInstance().hasCookies()) {
@@ -52,7 +51,7 @@ public class TorHelper {
                 e.printStackTrace();
             }
         }
-        webView.reload();
+        navigator.getCurrentWebView().reload();
     }
 
     public void torDisable() {
@@ -64,7 +63,7 @@ public class TorHelper {
                 SharedPreferences.Editor spEdit = sp.edit();
                 spEdit.putBoolean(PREF_TOR_ENABLED, false);
                 spEdit.apply();
-                CookieHelper.acceptCookies(webView, true);
+                CookieHelper.acceptCookies(navigator, true);
             } catch (Exception e) {
                 e.printStackTrace();
             }

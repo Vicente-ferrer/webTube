@@ -6,7 +6,6 @@ import android.graphics.Bitmap;
 import android.net.Uri;
 import android.preference.PreferenceManager;
 import com.google.android.material.snackbar.Snackbar;
-import androidx.core.content.ContextCompat;
 import android.view.View;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
@@ -19,25 +18,25 @@ public class WebTubeWebViewClient extends WebViewClient {
     Context context;
     View.OnClickListener clickListener;
     View appWindow;
-    View statusBarSpace;
-    View bottomBar;
     PlayerBridge playerBridge;
     PlayerController playerController;
-    ContentBlocker contentBlocker;
+    ContentBlocker.Page contentBlockerPage;
+    MiniPlayerController miniPlayer;
 
-    public WebTubeWebViewClient(Context context, View appWindow, View.OnClickListener clickListener, View statusBarSpace, View bottomBar,
-                                PlayerBridge playerBridge, PlayerController playerController, ContentBlocker contentBlocker) {
+    // playerController: null for the browser WebView
+    public WebTubeWebViewClient(Context context, View appWindow, View.OnClickListener clickListener, PlayerBridge playerBridge,
+                                PlayerController playerController, ContentBlocker.Page contentBlockerPage, MiniPlayerController miniPlayer) {
         this.context = context;
         this.clickListener = clickListener;
         this.appWindow = appWindow;
-        this.statusBarSpace = statusBarSpace;
-        this.bottomBar = bottomBar;
         this.playerBridge = playerBridge;
         this.playerController = playerController;
-        this.contentBlocker = contentBlocker;
+        this.contentBlockerPage = contentBlockerPage;
+        this.miniPlayer = miniPlayer;
     }
 
-    // Open links in a browser window (except for sign-in dialogs and YouTube URLs)
+    // Open links in a browser window (except for sign-in dialogs and YouTube URLs),
+    // and videos in the player, other YouTube pages in the browser WebView
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
         if (url != null && url.startsWith("http") && !url.contains("accounts.google.") && !url.contains("youtube.")) {
@@ -45,21 +44,27 @@ public class WebTubeWebViewClient extends WebViewClient {
                     new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
             return true;
         }
-        return false;
+        return miniPlayer.openElsewhere(view, url);
     }
 
     @Override
     public void onPageStarted(WebView view, String url, Bitmap favicon) {
         super.onPageStarted(view, url, favicon);
-        contentBlocker.onPageChanged(url);
-        contentBlocker.onPageStarted(url);
+        contentBlockerPage.onPageChanged(url);
+        contentBlockerPage.onPageStarted(url);
         playerBridge.onPageStarted(url);
+    }
+
+    @Override
+    public void onPageFinished(WebView view, String url) {
+        super.onPageFinished(view, url);
+        miniPlayer.onPageFinished(view);
     }
 
     // Runs on a network thread
     @Override
     public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-        WebResourceResponse blocked = contentBlocker.intercept(request);
+        WebResourceResponse blocked = contentBlockerPage.intercept(request);
         return blocked != null ? blocked : super.shouldInterceptRequest(view, request);
     }
 
@@ -67,13 +72,11 @@ public class WebTubeWebViewClient extends WebViewClient {
     @Override
     public void doUpdateVisitedHistory(WebView view, String url, boolean isReload) {
         super.doUpdateVisitedHistory(view, url, isReload);
-        playerController.onPageChanged(url);
-        contentBlocker.onPageChanged(url);
-
-        // To adapt the statusbar color
-        int colorId = PlayerController.isVideoUrl(url) ? R.color.colorWatch : R.color.colorPrimary;
-        statusBarSpace.setBackgroundColor(ContextCompat.getColor(context, colorId));
-        bottomBar.setBackgroundColor(ContextCompat.getColor(context, colorId));
+        if (playerController != null) {
+            playerController.onPageChanged(url);
+        }
+        contentBlockerPage.onPageChanged(url);
+        miniPlayer.onPageChanged(view, url);
     }
 
     // Deal with error messages

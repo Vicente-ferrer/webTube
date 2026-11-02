@@ -21,6 +21,11 @@ import java.util.Set;
 
 // Injects webtube.js into YouTube pages and forwards its messages to the PlayerController
 public class PlayerBridge {
+    public interface LinkListener {
+        // A link to a page that belongs in the other WebView (see MiniPlayerController)
+        void onOpenLink(String url);
+    }
+
     private static final String LOG_TAG = "webTube";
     private static final String BRIDGE_NAME = "WebTubeBridge";
     private static final Set<String> ALLOWED_ORIGINS = new HashSet<>(Arrays.asList(
@@ -28,13 +33,17 @@ public class PlayerBridge {
 
     private final WebView webView;
     private final PlayerController playerController;
+    private final LinkListener linkListener;
     private final String script;
     private final boolean documentStartSupported;
 
-    public PlayerBridge(Context context, WebView webView, PlayerController playerController) {
+    // playerController: null for the WebView that shows every page but videos
+    public PlayerBridge(Context context, WebView webView, PlayerController playerController, LinkListener linkListener) {
         this.webView = webView;
         this.playerController = playerController;
-        this.script = readAsset(context, "webtube.js");
+        this.linkListener = linkListener;
+        this.script = readAsset(context, "webtube.js")
+                .replace("__WEBTUBE_ROLE__", playerController != null ? "player" : "browser");
         this.documentStartSupported = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT);
     }
 
@@ -73,7 +82,12 @@ public class PlayerBridge {
         try {
             JSONObject json = new JSONObject(data);
             String type = json.optString("type");
-            if ("state".equals(type)) {
+            if ("open".equals(type)) {
+                linkListener.onOpenLink(json.optString("url"));
+            } else if (playerController == null) {
+                // Videos outside the player, like the previews in the feed
+                return;
+            } else if ("state".equals(type)) {
                 playerController.onStateReported(new PlaybackState(json));
             } else if ("skipped".equals(type)) {
                 playerController.onSegmentSkipped(json.optString("category"));

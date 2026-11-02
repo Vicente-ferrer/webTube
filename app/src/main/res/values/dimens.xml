@@ -4,4 +4,9 @@
     <dimen name="activity_vertical_margin">16dp</dimen>
     <!-- Without the navigation bar inset added below it -->
     <dimen name="bottom_bar_height">56dp</dimen>
+    <!-- 16:9 video on the left of the mini player, under its progress line -->
+    <dimen name="mini_player_height">64dp</dimen>
+    <dimen name="mini_player_progress_height">2dp</dimen>
+    <dimen name="mini_player_video_width">110dp</dimen>
+    <dimen name="mini_player_video_height">62dp</dimen>
 </resources>

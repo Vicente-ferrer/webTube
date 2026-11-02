@@ -12,14 +12,14 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
 public class BookmarkSelectedListener implements NavigationView.OnNavigationItemSelectedListener {
-    WebView webView;
+    Navigator navigator;
     Context context;
     String time;
     BookmarkManager bookmarkManager;
     DrawerLayout drawerLayout;
 
-    public BookmarkSelectedListener(Context context, WebView webView, BookmarkManager bookmarkManager, DrawerLayout drawerLayout) {
-        this.webView = webView;
+    public BookmarkSelectedListener(Context context, Navigator navigator, BookmarkManager bookmarkManager, DrawerLayout drawerLayout) {
+        this.navigator = navigator;
         this.context = context;
         this.bookmarkManager = bookmarkManager;
         this.drawerLayout = drawerLayout;
@@ -28,6 +28,8 @@ public class BookmarkSelectedListener implements NavigationView.OnNavigationItem
     @Override
     public boolean onNavigationItemSelected(final MenuItem menuItem) {
         final String menuItemTitle = menuItem.getTitle().toString();
+        // The page the user is looking at: the video or the browser
+        final WebView webView = navigator.getCurrentWebView();
         if (menuItemTitle.equals(context.getString(R.string.addPage))) {
             if (!webView.getTitle().equals("YouTube")) {
                 if (webView.getUrl().contains("/watch") && Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
@@ -80,7 +82,7 @@ public class BookmarkSelectedListener implements NavigationView.OnNavigationItem
                 }
             }
         } else {
-            webView.loadUrl(bookmarkManager.getUrl(menuItemTitle));
+            navigator.open(bookmarkManager.getUrl(menuItemTitle));
             drawerLayout.closeDrawers();
         }
         return true;

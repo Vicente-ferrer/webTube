@@ -4,6 +4,9 @@
     if (window.top !== window || window.__webTube) return;
 
     var bridge = window.WebTubeBridge;
+    // Which WebView this is (MiniPlayerController.java): the "player" shows videos,
+    // the "browser" every other page. Set by PlayerBridge.java.
+    var role = '__WEBTUBE_ROLE__';
     var actionHandlers = {};
     var lastReport = '';
 
@@ -19,6 +22,24 @@
         post(message);
     }
 
+    // Same test as YouTubeUrls.isVideoUrl
+    function isVideoPath(path) {
+        return /^\/(watch|shorts|live)(\/|$)/.test(path);
+    }
+
+    // Links to a video open in the player, and from the player, links to any other
+    // YouTube page open in the browser. Before YouTube's own click handlers.
+    window.addEventListener('click', function (e) {
+        var link = e.target instanceof Element ? e.target.closest('a[href]') : null;
+        if (!link || e.defaultPrevented || e.button !== 0) return;
+        var url = new URL(link.href, location.href);
+        if (url.protocol !== 'https:' || !/(^|\.)youtube\.com$/.test(url.hostname)) return;
+        if (isVideoPath(url.pathname) === (role === 'player')) return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        post({type: 'open', url: url.href});
+    }, true);
+
     function addStyle(css) {
         try {
             var sheet = new CSSStyleSheet();
@@ -32,13 +53,19 @@
     // Get rid of orange outlines
     addStyle('*, *:focus { outline: none !important; -webkit-tap-highlight-color: transparent !important; }');
 
-    // Picture-in-picture: only the video, filling the window.
+    // Picture-in-picture and the mini player: only the video, filling the window.
     // Sizes in % of the viewport, since vh units are 0 in a wrap_content WebView.
-    addStyle('html.webtube-pip, html.webtube-pip body { overflow: hidden !important; background: #000 !important; }' +
-        ' html.webtube-pip body, html.webtube-pip body * { visibility: hidden !important; }' +
-        ' html.webtube-pip body video { visibility: visible !important; position: fixed !important; top: 0 !important; left: 0 !important;' +
+    addStyle('html.webtube-video-only, html.webtube-video-only body { overflow: hidden !important; background: #000 !important; }' +
+        ' html.webtube-video-only body, html.webtube-video-only body * { visibility: hidden !important; }' +
+        ' html.webtube-video-only body video { visibility: visible !important; position: fixed !important; top: 0 !important; left: 0 !important;' +
         ' width: 100% !important; height: 100% !important; object-fit: contain !important; transform: none !important;' +
         ' z-index: 2147483647 !important; background: #000 !important; }');
+    var pictureInPicture = false;
+    var mini = false;
+
+    function updateVideoOnly() {
+        document.documentElement.classList.toggle('webtube-video-only', pictureInPicture || mini);
+    }
 
     // The app decides when to pause (MainActivity.onPause), so the page must never
     // see itself as hidden, or YouTube pauses the video when the screen turns off.
@@ -109,7 +136,7 @@
 
     function report() {
         var v = video();
-        if (!v) return;
+        if (!v || role !== 'player') return;
         var meta = navigator.mediaSession && navigator.mediaSession.metadata;
         var artwork = meta && meta.artwork && meta.artwork.length ? meta.artwork[meta.artwork.length - 1].src : '';
         lastTitle = title();
@@ -184,7 +211,16 @@
         },
         report: function () { lastReport = ''; report(); },
         setPictureInPicture: function (enabled) {
-            document.documentElement.classList.toggle('webtube-pip', enabled);
+            pictureInPicture = enabled;
+            updateVideoOnly();
+        },
+        setMini: function (enabled) {
+            mini = enabled;
+            updateVideoOnly();
+        },
+        // The browser's feed previews, while the player covers it
+        pauseAll: function () {
+            document.querySelectorAll('video').forEach(function (v) { v.pause(); });
         },
         setSkipSegments: function (id, segments) {
             if (id === skip.videoId) return;

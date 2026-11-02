@@ -25,7 +25,7 @@ import info.guardianproject.netcipher.proxy.OrbotHelper;
 
 public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     Context context;
-    WebView webView;
+    Navigator navigator;
     TorHelper torHelper;
     BackgroundPlayHelper backgroundPlayHelper;
     PictureInPictureHelper pictureInPictureHelper;
@@ -43,11 +43,11 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     // In the order of R.array.sleepTimerOptions: off, minutes, end of the video
     private static final int[] SLEEP_TIMER_MINUTES = {0, 15, 30, 45, 60, 120, -1};
 
-    public MenuHelper(Context context, WebView webView, TorHelper torHelper, BackgroundPlayHelper backgroundPlayHelper,
+    public MenuHelper(Context context, Navigator navigator, TorHelper torHelper, BackgroundPlayHelper backgroundPlayHelper,
                       PictureInPictureHelper pictureInPictureHelper, ContentBlocker contentBlocker, SponsorBlock sponsorBlock,
                       PlayerController playerController, View appWindow) {
         this.context = context;
-        this.webView = webView;
+        this.navigator = navigator;
         this.torHelper = torHelper;
         this.backgroundPlayHelper = backgroundPlayHelper;
         this.pictureInPictureHelper = pictureInPictureHelper;
@@ -57,6 +57,11 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
         this.appWindow = appWindow;
 
         sp = PreferenceManager.getDefaultSharedPreferences(context);
+    }
+
+    // The page the user is looking at: the video or the browser
+    private WebView webView() {
+        return navigator.getCurrentWebView();
     }
 
     public void homepageTutorial() {
@@ -129,7 +134,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
             String error = contentBlocker.getLastError();
             Snackbar.make(appWindow, error == null ? context.getString(R.string.contentBlockerReady)
                     : context.getString(R.string.filterListsUpdateFailed, error), Snackbar.LENGTH_LONG).show();
-            webView.reload();
+            webView().reload();
         });
     }
 
@@ -181,22 +186,22 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
     public boolean onMenuItemClick(final MenuItem item) {
         switch (item.getItemId()) {
             case R.id.action_web:
-                context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(webView.getUrl())));
+                context.startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(webView().getUrl())));
                 return true;
 
             case R.id.action_refresh:
-                webView.reload();
+                webView().reload();
                 return true;
 
             case R.id.action_home:
                 homepageTutorial();
-                webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
+                navigator.open(sp.getString("homepage", "https://m.youtube.com/"));
                 return true;
 
             case R.id.action_set_as_home:
                 Snackbar.make(appWindow, context.getString(R.string.homePageSet), Snackbar.LENGTH_LONG).show();
                 SharedPreferences.Editor editor = sp.edit();
-                editor.putString("homepage", webView.getUrl());
+                editor.putString("homepage", webView().getUrl());
                 editor.apply();
                 return true;
 
@@ -205,12 +210,12 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                 return true;
 
             case R.id.action_share:
-                if (!webView.getUrl().contains("/watch")) {
+                if (!webView().getUrl().contains("/watch")) {
                     show_noVideo_dialog();
                 } else {
                     Intent shareIntent = new Intent();
                     shareIntent.setAction(Intent.ACTION_SEND);
-                    shareIntent.putExtra(Intent.EXTRA_TEXT, webView.getUrl());
+                    shareIntent.putExtra(Intent.EXTRA_TEXT, webView().getUrl());
                     shareIntent.setType("text/plain");
                     Intent chooser = Intent.createChooser(shareIntent, context.getResources().getText(R.string.share_with));
                     // The app itself takes shared links too
@@ -223,7 +228,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                 return true;
 
             case R.id.action_cast_to_kodi:
-                if (!webView.getUrl().contains("/watch")) {
+                if (!webView().getUrl().contains("/watch")) {
                     show_noVideo_dialog();
                 } else {
                     try {
@@ -233,7 +238,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                             All modifications were made on 06-Jan-2016 */
                         Intent intent = new Intent(Intent.ACTION_VIEW);
                         intent.setPackage("org.xbmc.kore");
-                        intent.setData(Uri.parse(webView.getUrl().replace("https", "http")));
+                        intent.setData(Uri.parse(webView().getUrl().replace("https", "http")));
                         context.startActivity(intent);
                         /* End of the modified NewPipe code extract */
                     } catch (Exception e) {
@@ -255,7 +260,7 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
             case R.id.action_content_blocker:
                 if (contentBlocker.isEnabled()) {
                     item.setChecked(false);
-                    contentBlocker.setEnabled(false, webView::reload);
+                    contentBlocker.setEnabled(false, webView()::reload);
                 } else if (contentBlocker.isWarningAccepted()) {
                     enableContentBlocker(item);
                 } else {
@@ -339,20 +344,20 @@ public class MenuHelper implements ActionMenuView.OnMenuItemClickListener {
                 return true;
 
             case R.id.action_download:
-                if (!webView.getUrl().contains("/watch")) {
+                if (!webView().getUrl().contains("/watch")) {
                     show_noVideo_dialog();
                 } else {
-                    new Downloader(context).download(webView.getUrl());
+                    new Downloader(context).download(webView().getUrl());
                 }
                 return true;
 
             case R.id.action_accept_cookies:
                 if (sp.getBoolean(PREF_COOKIES_ENABLED, true)) {
-                    CookieHelper.acceptCookies(webView, false);
+                    CookieHelper.acceptCookies(navigator, false);
                     CookieHelper.deleteCookies();
                     item.setChecked(false);
                 } else {
-                    CookieHelper.acceptCookies(webView, true);
+                    CookieHelper.acceptCookies(navigator, true);
                     item.setChecked(true);
                 }
                 SharedPreferences.Editor spEdit = sp.edit();

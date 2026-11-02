@@ -7,4 +7,6 @@
     <color name="colorWatchDark">#000000</color>
     <color name="bookmarksHeader">#333333</color>
     <color name="pageBackground">#0F0F0F</color>
+    <color name="miniPlayerBackground">#212121</color>
+    <color name="miniPlayerTrack">#3F3F3F</color>
 </resources>

@@ -31,7 +31,9 @@ import android.widget.ProgressBar;
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "webTube";
 
-    private WebTubeWebView webView;
+    // Videos, and every other page (see MiniPlayerController)
+    private WebTubeWebView playerWebView;
+    private WebTubeWebView browserWebView;
     String time;
     private NavigationView navigationView;
     private SharedPreferences sp;
@@ -39,7 +41,7 @@ public class MainActivity extends AppCompatActivity {
     View.OnClickListener clickListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
+            miniPlayer.open(sp.getString("homepage", "https://m.youtube.com/"));
         }
     };
     private Context mApplicationContext;
@@ -49,10 +51,12 @@ public class MainActivity extends AppCompatActivity {
     BookmarkManager bookmarkManager;
     MenuHelper menuHelper;
     PlayerController playerController;
+    MiniPlayerController miniPlayer;
     PictureInPictureHelper pictureInPictureHelper;
     ContentBlocker contentBlocker;
     SponsorBlock sponsorBlock;
-    WebTubeChromeClient chromeClient;
+    WebTubeChromeClient playerChromeClient;
+    WebTubeChromeClient browserChromeClient;
 
     // Light or dark, as the views and the page were created
     private int nightMode;
@@ -74,7 +78,8 @@ public class MainActivity extends AppCompatActivity {
         EdgeToEdge.enable(this, SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT));
         setContentView(R.layout.activity_main);
 
-        webView = findViewById(R.id.webView);
+        playerWebView = findViewById(R.id.playerWebView);
+        browserWebView = findViewById(R.id.browserWebView);
         View appWindow = findViewById(R.id.appWindow);
         ProgressBar progress = findViewById(R.id.progress);
         FrameLayout customViewContainer = findViewById(R.id.customViewContainer);
@@ -84,17 +89,22 @@ public class MainActivity extends AppCompatActivity {
         navigationView = findViewById(R.id.bookmarks_panel);
         setUpWindowInsets(appWindow);
 
-        // Bridge between the page's <video> and the app
-        playerController = new PlayerController(webView);
-        PlayerBridge playerBridge = new PlayerBridge(this, webView, playerController);
+        // Bridge between the page's <video> and the app, which always controls the player WebView
+        playerController = new PlayerController(playerWebView);
+        miniPlayer = new MiniPlayerController(this, playerWebView, browserWebView, playerController);
+        PlayerBridge playerBridge = new PlayerBridge(this, playerWebView, playerController, miniPlayer);
         playerBridge.install();
+        PlayerBridge browserBridge = new PlayerBridge(this, browserWebView, null, miniPlayer);
+        browserBridge.install();
 
         // Set up WebChromeClient
-        chromeClient = new WebTubeChromeClient(this, webView, progress, customViewContainer, drawerLayout, playerController);
-        webView.setWebChromeClient(chromeClient);
+        playerChromeClient = new WebTubeChromeClient(this, playerWebView, progress, customViewContainer, drawerLayout, playerController);
+        playerWebView.setWebChromeClient(playerChromeClient);
+        browserChromeClient = new WebTubeChromeClient(this, browserWebView, progress, customViewContainer, drawerLayout, playerController);
+        browserWebView.setWebChromeClient(browserChromeClient);
 
         // Filter lists: blocked requests, hidden elements and scriptlets
-        contentBlocker = new ContentBlocker(this, webView);
+        contentBlocker = new ContentBlocker(this);
 
         // Sponsored segments skipped
         sponsorBlock = new SponsorBlock(this, playerController);
@@ -107,18 +117,21 @@ public class MainActivity extends AppCompatActivity {
             pictureInPictureHelper.update();
             recreateIfThemeChanged();
         });
-        webView.setBackgroundPolicy(() ->
+        playerWebView.setBackgroundPolicy(() ->
                 backgroundPlayHelper.isBackgroundPlayEnabled() && playerController.getState().hasVideo());
 
         // Set up WebViewClient
-        webView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, findViewById(R.id.statusBarSpace), findViewById(R.id.bottomBar),
-                playerBridge, playerController, contentBlocker));
+        playerWebView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, playerBridge,
+                playerController, contentBlocker.attach(playerWebView), miniPlayer));
+        browserWebView.setWebViewClient(new WebTubeWebViewClient(this, appWindow, clickListener, browserBridge,
+                null, contentBlocker.attach(browserWebView), miniPlayer));
 
         // Set up WebView
-        setUpWebview();
+        setUpWebview(playerWebView);
+        setUpWebview(browserWebView);
 
         // Initialize bookmarks panel
-        bookmarkManager = new BookmarkManager(this, webView);
+        bookmarkManager = new BookmarkManager(this, miniPlayer);
         bookmarkManager.initializeBookmarks(navigationView);
         drawerLayout.setDrawerListener(new DrawerLayout.DrawerListener() {
             @Override
@@ -142,10 +155,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        navigationView.setNavigationItemSelectedListener(new BookmarkSelectedListener(this, webView, bookmarkManager, drawerLayout));
+        navigationView.setNavigationItemSelectedListener(new BookmarkSelectedListener(this, miniPlayer, bookmarkManager, drawerLayout));
 
         // Tor
-        torHelper = new TorHelper(mApplicationContext, webView);
+        torHelper = new TorHelper(mApplicationContext, miniPlayer);
         torHelper.setUpTor();
 
         backgroundPlayHelper = new BackgroundPlayHelper(mApplicationContext);
@@ -155,7 +168,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Menu helper
         ActionMenuView actionMenu = findViewById(R.id.menu_main);
-        menuHelper = new MenuHelper(this, webView, torHelper, backgroundPlayHelper, pictureInPictureHelper, contentBlocker,
+        menuHelper = new MenuHelper(this, miniPlayer, torHelper, backgroundPlayHelper, pictureInPictureHelper, contentBlocker,
                 sponsorBlock, playerController, appWindow);
         getMenuInflater().inflate(R.menu.menu_main, actionMenu.getMenu());
         menuHelper.setUpMenu(actionMenu, drawerLayout, findViewById(R.id.bookmarks_panel));
@@ -165,11 +178,11 @@ public class MainActivity extends AppCompatActivity {
         // Load the page, once the content blocker rules are in place
         contentBlocker.start(() -> {
             // Recreated for a new theme: back to the same pages
-            if (savedInstanceState != null && webView.restoreState(savedInstanceState) != null) {
+            if (savedInstanceState != null && miniPlayer.restoreState(savedInstanceState)) {
                 return;
             }
             if (!loadUrlFromIntent(getIntent())) {
-                webView.loadUrl(sp.getString("homepage", "https://m.youtube.com/"));
+                miniPlayer.open(sp.getString("homepage", "https://m.youtube.com/"));
             }
         });
     }
@@ -243,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
-        webView.saveState(outState);
+        miniPlayer.saveState(outState);
     }
 
     @Override
@@ -259,6 +272,7 @@ public class MainActivity extends AppCompatActivity {
         int appUiVisibility = isInPictureInPictureMode ? View.GONE : View.VISIBLE;
         findViewById(R.id.bottomBar).setVisibility(appUiVisibility);
         findViewById(R.id.statusBarSpace).setVisibility(appUiVisibility);
+        miniPlayer.setPictureInPicture(isInPictureInPictureMode);
         playerController.setPictureInPicture(isInPictureInPictureMode);
 
         // The window was closed instead of being expanded back to the app
@@ -274,6 +288,7 @@ public class MainActivity extends AppCompatActivity {
         pictureInPictureHelper.unregister();
         contentBlocker.release();
         sponsorBlock.release();
+        miniPlayer.release();
         // The WebView playing the video dies with this activity
         PlaybackService.stop(this);
         playerController.release();
@@ -297,13 +312,13 @@ public class MainActivity extends AppCompatActivity {
             return false;
         }
 
-        if (!url.equals(webView.getUrl())) {
-            webView.loadUrl(url);
+        if (!url.equals(miniPlayer.getCurrentWebView().getUrl())) {
+            miniPlayer.open(url);
         }
         return true;
     }
 
-    public void setUpWebview() {
+    public void setUpWebview(WebView webView) {
         // Lets chrome://inspect attach to debug builds
         if ((getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             WebView.setWebContentsDebuggingEnabled(true);
@@ -336,11 +351,15 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (chromeClient.exitFullscreen()) {
+        if (playerChromeClient.exitFullscreen() || browserChromeClient.exitFullscreen()) {
             return;
         }
-        if (webView.canGoBack()) {
-            webView.goBack();
+        if (miniPlayer.onBackPressed()) {
+            return;
+        }
+        // On the first page: a playing video keeps playing with the app in the background
+        if (playerController.getState().playing) {
+            moveTaskToBack(true);
         } else {
             finish();
         }

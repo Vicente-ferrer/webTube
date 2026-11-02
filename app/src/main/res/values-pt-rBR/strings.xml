@@ -77,4 +77,5 @@
     <string name="selfPromotionSkipped">Autopromoção pulada</string>
     <string name="interactionReminderSkipped">Lembrete de interação pulado</string>
     <string name="segmentSkipped">Trecho pulado</string>
+    <string name="expandPlayer">Expandir o player</string>
 </resources>

@@ -29,7 +29,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-// Blocks requests, hides elements and runs scriptlets in the WebView, following the filter lists
+// Blocks requests, hides elements and runs scriptlets in the WebViews, following the filter lists
 public class ContentBlocker implements FilterListManager.Listener {
     public static final String PREF_ENABLED = "contentBlockerEnabled";
     public static final String PREF_WARNING_ACCEPTED = "contentBlockerWarningAccepted";
@@ -37,27 +37,32 @@ public class ContentBlocker implements FilterListManager.Listener {
     // The sites this app opens; scriptlets and element hiding are injected per site
     private static final String[] HOSTS = {"m.youtube.com", "www.youtube.com", "youtube.com"};
 
-    private final WebView webView;
+    private final List<WebView> webViews = new ArrayList<>();
     private final FilterListManager lists;
     private final SharedPreferences sp;
     private final String library;
+    private final boolean documentStart = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT);
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private final List<ScriptHandler> scripts = new ArrayList<>();
-    private final Map<String, String> fallbackScripts = new HashMap<>();
-    private final AtomicInteger blockedOnPage = new AtomicInteger();
+    // Host to the script with its scriptlets and element hiding, while the rules are loaded
+    private final Map<String, String> hostScripts = new HashMap<>();
 
     private volatile FilterEngine engine;
-    private volatile String pageHost = "";
-    private volatile boolean pageAllowlisted;
     private String lastError;
 
-    public ContentBlocker(Context context, WebView webView) {
-        this.webView = webView;
+    public ContentBlocker(Context context) {
         lists = FilterListManager.get(context);
         sp = PreferenceManager.getDefaultSharedPreferences(context);
         library = readAsset(context, "scriptlets.js");
         lists.addListener(this);
+    }
+
+    // Blocks in this WebView too; its WebViewClient passes the page events to the returned Page
+    public Page attach(WebView webView) {
+        webViews.add(webView);
+        addScripts(webView);
+        return new Page(webView);
     }
 
     public boolean isEnabled() {
@@ -103,7 +108,15 @@ public class ContentBlocker implements FilterListManager.Listener {
     public void onListsUpdated(boolean byUser) {
         if (isEnabled()) {
             // A daily update applies from the next page, without interrupting a video
-            load(byUser, byUser ? webView::reload : null);
+            load(byUser, byUser ? this::reloadPages : null);
+        }
+    }
+
+    private void reloadPages() {
+        for (WebView webView : webViews) {
+            if (webView.getUrl() != null) {
+                webView.reload();
+            }
         }
     }
 
@@ -135,25 +148,32 @@ public class ContentBlocker implements FilterListManager.Listener {
         });
     }
 
-    @SuppressLint("RequiresFeature")
     private void installScripts() {
         removeScripts();
         FilterEngine current = engine;
         if (current == null) {
             return;
         }
-        boolean documentStart = WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT);
         for (String host : HOSTS) {
             String script = ScriptBuilder.build(library, current, host);
-            if (script == null) {
-                continue;
+            if (script != null) {
+                hostScripts.put(host, script);
             }
-            if (documentStart) {
-                scripts.add(WebViewCompat.addDocumentStartJavaScript(webView, script,
-                        Collections.singleton("https://" + host)));
-            } else {
-                fallbackScripts.put(host, script);
-            }
+        }
+        for (WebView webView : webViews) {
+            addScripts(webView);
+        }
+    }
+
+    @SuppressLint("RequiresFeature")
+    private void addScripts(WebView webView) {
+        if (!documentStart) {
+            // Injected by Page.onPageStarted instead
+            return;
+        }
+        for (Map.Entry<String, String> hostScript : hostScripts.entrySet()) {
+            scripts.add(WebViewCompat.addDocumentStartJavaScript(webView, hostScript.getValue(),
+                    Collections.singleton("https://" + hostScript.getKey())));
         }
     }
 
@@ -162,44 +182,56 @@ public class ContentBlocker implements FilterListManager.Listener {
             script.remove();
         }
         scripts.clear();
-        fallbackScripts.clear();
+        hostScripts.clear();
     }
 
-    // WebViews older than version 87 cannot inject at document start: inject as early as
-    // possible instead, after the page's first scripts may already have run
-    public void onPageStarted(String url) {
-        String script = fallbackScripts.get(Domains.hostOf(url));
-        if (script != null) {
-            webView.evaluateJavascript(script, null);
-        }
-    }
+    // The page shown in one WebView
+    public class Page {
+        private final WebView webView;
+        private final AtomicInteger blockedOnPage = new AtomicInteger();
+        private volatile String pageHost = "";
+        private volatile boolean pageAllowlisted;
 
-    // The main frame changed (also for YouTube's in-page navigation)
-    public void onPageChanged(String url) {
-        int blocked = blockedOnPage.getAndSet(0);
-        if (blocked > 0) {
-            Log.d(LOG_TAG, "Blocked " + blocked + " requests on the previous page");
+        private Page(WebView webView) {
+            this.webView = webView;
         }
-        pageHost = Domains.hostOf(url);
-        FilterEngine current = engine;
-        pageAllowlisted = current != null && current.isPageAllowlisted(url);
-    }
 
-    // Called on a WebView network thread; null lets the request through
-    public WebResourceResponse intercept(WebResourceRequest request) {
-        FilterEngine current = engine;
-        if (current == null || pageAllowlisted || request.isForMainFrame()) {
-            return null;
+        // WebViews older than version 87 cannot inject at document start: inject as early as
+        // possible instead, after the page's first scripts may already have run
+        public void onPageStarted(String url) {
+            String script = documentStart ? null : hostScripts.get(Domains.hostOf(url));
+            if (script != null) {
+                webView.evaluateJavascript(script, null);
+            }
         }
-        String url = request.getUrl().toString();
-        if (!url.startsWith("http")) {
-            return null;
+
+        // The main frame changed (also for YouTube's in-page navigation)
+        public void onPageChanged(String url) {
+            int blocked = blockedOnPage.getAndSet(0);
+            if (blocked > 0) {
+                Log.d(LOG_TAG, "Blocked " + blocked + " requests on the previous page");
+            }
+            pageHost = Domains.hostOf(url);
+            FilterEngine current = engine;
+            pageAllowlisted = current != null && current.isPageAllowlisted(url);
         }
-        if (!current.shouldBlock(url, pageHost, requestType(request))) {
-            return null;
+
+        // Called on a WebView network thread; null lets the request through
+        public WebResourceResponse intercept(WebResourceRequest request) {
+            FilterEngine current = engine;
+            if (current == null || pageAllowlisted || request.isForMainFrame()) {
+                return null;
+            }
+            String url = request.getUrl().toString();
+            if (!url.startsWith("http")) {
+                return null;
+            }
+            if (!current.shouldBlock(url, pageHost, requestType(request))) {
+                return null;
+            }
+            blockedOnPage.incrementAndGet();
+            return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream(new byte[0]));
         }
-        blockedOnPage.incrementAndGet();
-        return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream(new byte[0]));
     }
 
     // WebView does not tell the resource type, so guess it from the path and the Accept header
@@ -260,6 +292,7 @@ public class ContentBlocker implements FilterListManager.Listener {
         lists.removeListener(this);
         executor.shutdownNow();
         removeScripts();
+        webViews.clear();
     }
 
     private static String readAsset(Context context, String name) {

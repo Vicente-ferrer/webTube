@@ -12,6 +12,12 @@ public class CookieHelper {
         }
     }
 
+    public static void acceptCookies(Navigator navigator, boolean accept) {
+        for (WebView webView : navigator.getWebViews()) {
+            acceptCookies(webView, accept);
+        }
+    }
+
     public static void deleteCookies() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
             CookieManager.getInstance().removeAllCookies(null);

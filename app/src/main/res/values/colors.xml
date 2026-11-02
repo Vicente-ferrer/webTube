@@ -12,4 +12,6 @@
     <color name="bookmarksHeader">#DDDDDD</color>
     <!-- Shown before the page paints, so it should match YouTube's background -->
     <color name="pageBackground">#FFFFFF</color>
+    <color name="miniPlayerBackground">#FFFFFF</color>
+    <color name="miniPlayerTrack">#E0E0E0</color>
 </resources>

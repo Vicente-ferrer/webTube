@@ -29,12 +29,118 @@
                 android:layout_height="match_parent"
                 android:layout_below="@id/statusBarSpace">
 
-                <cz.martykan.webtube.WebTubeWebView
-                    android:id="@+id/webView"
+                <!-- See MiniPlayerController -->
+                <FrameLayout
+                    android:id="@+id/webViewFrame"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+                    android:layout_height="match_parent"
                     android:layout_above="@+id/bottomBar"
-                    android:layout_alignParentTop="true" />
+                    android:layout_alignParentTop="true">
+
+                    <!-- Every YouTube page but videos -->
+                    <cz.martykan.webtube.WebTubeWebView
+                        android:id="@+id/browserWebView"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <!-- Videos, over the browser; shrinks into the mini player -->
+                    <cz.martykan.webtube.WebTubeWebView
+                        android:id="@+id/playerWebView"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="bottom|start"
+                        android:visibility="gone" />
+
+                    <!-- Over the shrunk player WebView, which shows through on the left -->
+                    <LinearLayout
+                        android:id="@+id/miniPlayer"
+                        android:layout_width="match_parent"
+                        android:layout_height="@dimen/mini_player_height"
+                        android:layout_gravity="bottom"
+                        android:clickable="true"
+                        android:contentDescription="@string/expandPlayer"
+                        android:focusable="true"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <FrameLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/mini_player_progress_height"
+                            android:background="@color/miniPlayerTrack">
+
+                            <View
+                                android:id="@+id/miniPlayerProgress"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:background="@color/colorAccent" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="0dp"
+                            android:layout_weight="1"
+                            android:orientation="horizontal">
+
+                            <View
+                                android:layout_width="@dimen/mini_player_video_width"
+                                android:layout_height="match_parent" />
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="match_parent"
+                                android:layout_weight="1"
+                                android:background="@color/miniPlayerBackground"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal"
+                                android:paddingStart="12dp"
+                                android:paddingLeft="12dp">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:orientation="vertical">
+
+                                    <TextView
+                                        android:id="@+id/miniPlayerTitle"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:ellipsize="end"
+                                        android:maxLines="1"
+                                        android:textColor="?android:attr/textColorPrimary"
+                                        android:textSize="14sp" />
+
+                                    <TextView
+                                        android:id="@+id/miniPlayerChannel"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:ellipsize="end"
+                                        android:maxLines="1"
+                                        android:textColor="?android:attr/textColorSecondary"
+                                        android:textSize="12sp" />
+                                </LinearLayout>
+
+                                <ImageButton
+                                    android:id="@+id/miniPlayerPlayPause"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:contentDescription="@string/pause"
+                                    android:src="@drawable/pause"
+                                    app:tint="?android:attr/textColorPrimary" />
+
+                                <ImageButton
+                                    android:id="@+id/miniPlayerClose"
+                                    android:layout_width="48dp"
+                                    android:layout_height="48dp"
+                                    android:background="?attr/selectableItemBackgroundBorderless"
+                                    android:contentDescription="@string/close"
+                                    android:src="@drawable/close"
+                                    app:tint="?android:attr/textColorPrimary" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+                </FrameLayout>
 
                 <!-- Also drawn behind the navigation bar -->
                 <RelativeLayout

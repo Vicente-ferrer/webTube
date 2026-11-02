@@ -89,13 +89,9 @@ public class PlayerController {
 
     // A page without a video was loaded
     void onPageChanged(String url) {
-        if (state.hasVideo() && !url.equals(state.url) && !isVideoUrl(url)) {
+        if (state.hasVideo() && !url.equals(state.url) && !YouTubeUrls.isVideoUrl(url)) {
             onStateReported(PlaybackState.NONE);
         }
-    }
-
-    public static boolean isVideoUrl(String url) {
-        return url != null && (url.contains("/watch") || url.contains("/shorts/"));
     }
 
     public void play() {
@@ -129,6 +125,11 @@ public class PlayerController {
     // Shows only the video, filling the page
     public void setPictureInPicture(boolean enabled) {
         run("setPictureInPicture(" + enabled + ")");
+    }
+
+    // Shows only the video, for the mini player
+    public void setMini(boolean enabled) {
+        run("setMini(" + enabled + ")");
     }
 
     // segments: JSON array of [start, end, category], in seconds

@@ -80,4 +80,5 @@
     <string name="selfPromotionSkipped">Self-promotion skipped</string>
     <string name="interactionReminderSkipped">Interaction reminder skipped</string>
     <string name="segmentSkipped">Segment skipped</string>
+    <string name="expandPlayer">Expand the player</string>
 </resources>

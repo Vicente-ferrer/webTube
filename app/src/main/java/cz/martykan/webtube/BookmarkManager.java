@@ -20,15 +20,20 @@ public class BookmarkManager {
     private List<String> bookmarkTitles;
 
     Context context;
-    WebView webView;
+    Navigator navigator;
     NavigationView navigationView;
     SharedPreferences sp;
 
-    public BookmarkManager(Context context, WebView webView) {
+    public BookmarkManager(Context context, Navigator navigator) {
         this.context = context;
-        this.webView = webView;
+        this.navigator = navigator;
 
         sp = PreferenceManager.getDefaultSharedPreferences(context);
+    }
+
+    // The page the user is looking at: the video or the browser
+    private WebView webView() {
+        return navigator.getCurrentWebView();
     }
 
     public void initializeBookmarks(NavigationView navigationView) {
@@ -59,7 +64,7 @@ public class BookmarkManager {
         }
 
         try {
-            String url = webView.getUrl();
+            String url = webView().getUrl();
             if (url.contains("&t=")) {
                 url = url.substring(0, url.indexOf("&t="));
             }
@@ -68,8 +73,8 @@ public class BookmarkManager {
                 url = url.replace("+", "%20");
             }
 
-            if (bookmarkUrls.contains(webView.getUrl())
-                    || bookmarkTitles.contains(webView.getTitle().replace("'", "\\'"))
+            if (bookmarkUrls.contains(webView().getUrl())
+                    || bookmarkTitles.contains(webView().getTitle().replace("'", "\\'"))
                     || bookmarkTimelessUrls.contains(url)) {
                 menu.add(context.getString(R.string.removePage)).setIcon(R.drawable.ic_close_grey600_24dp);
             } else {
